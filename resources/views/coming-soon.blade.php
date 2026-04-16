@@ -103,7 +103,7 @@
         .transition { transition: all 0.25s ease; }
         .glass-card { transition: transform 0.25s ease, border-color 0.2s, box-shadow 0.3s; }
         .cta-whatsapp:hover, .cta-email:hover { transform: translateY(-3px) scale(1.02); }
-        .countdown-unit span:first-child { text-shadow: 0 0 12px #fbbf24aa; }
+        .countdown-unit span:first-child { text-shadow: 0 0 12px #fb2424aa; }
 
         /* responsive fine-tuning */
         @media (max-width: 640px) {
