@@ -39,18 +39,18 @@
           <span class="absolute bottom-0 left-0 w-full h-1 bg-blue-500 transform scale-x-0 group-hover:scale-x-100 transition-transform origin-left duration-300"></span>
         </h3>
         <ul class="space-y-3">
-          <li><a href="#" class="text-gray-300 hover:text-white hover:pl-2 transition-all duration-300 flex items-center">
+          <li><a href="{{route('about')}}" class="text-gray-300 hover:text-white hover:pl-2 transition-all duration-300 flex items-center">
             <span class="w-1 h-1 bg-blue-500 rounded-full mr-2 opacity-0 group-hover:opacity-100 transition duration-300"></span>
-            Home</a></li>
-          <li><a href="#" class="text-gray-300 hover:text-white hover:pl-2 transition-all duration-300 flex items-center">
+            About</a></li>
+          <li><a href="{{route('faqs')}}" class="text-gray-300 hover:text-white hover:pl-2 transition-all duration-300 flex items-center">
             <span class="w-1 h-1 bg-blue-500 rounded-full mr-2 opacity-0 group-hover:opacity-100 transition duration-300"></span>
-            Projects</a></li>
+            FAQs</a></li>
           <li><a href="#" class="text-gray-300 hover:text-white hover:pl-2 transition-all duration-300 flex items-center">
             <span class="w-1 h-1 bg-blue-500 rounded-full mr-2 opacity-0 group-hover:opacity-100 transition duration-300"></span>
             Services</a></li>
-          <li><a href="#" class="text-gray-300 hover:text-white hover:pl-2 transition-all duration-300 flex items-center">
+          <li><a href="{{route('contact')}}" class="text-gray-300 hover:text-white hover:pl-2 transition-all duration-300 flex items-center">
             <span class="w-1 h-1 bg-blue-500 rounded-full mr-2 opacity-0 group-hover:opacity-100 transition duration-300"></span>
-            Blog</a></li>
+            Contact</a></li>
         </ul>
       </div>
 
@@ -102,9 +102,8 @@
         </span>
       </p>
       <div class="flex space-x-6">
-        <a href="#" class="text-gray-400 hover:text-white transition">Privacy Policy</a>
-        <a href="#" class="text-gray-400 hover:text-white transition">Terms of Service</a>
-        <a href="#" class="text-gray-400 hover:text-white transition">Cookies</a>
+        <a href="{{route('privacy')}}" class="text-gray-400 hover:text-white transition">Privacy Policy</a>
+        <a href="{{route('terms')}}" class="text-gray-400 hover:text-white transition">Terms of Service</a>
       </div>
     </div>
   </div>

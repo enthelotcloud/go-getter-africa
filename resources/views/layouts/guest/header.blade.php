@@ -11,26 +11,14 @@
                 <nav aria-label="Global" class="hidden md:block">
                     <ul class="flex items-center gap-6 text-sm">
                         <li>
-                            <a class="text-gray-500 transition hover:text-gray-500/75" href="#">
+                            <a class="text-gray-500 transition hover:text-gray-500/75" href="{{ route('about') }}">
                                 About
                             </a>
                         </li>
 
                         <li>
-                            <a class="text-gray-500 transition hover:text-gray-500/75" href="#">
-                                Careers
-                            </a>
-                        </li>
-
-                        <li>
-                            <a class="text-gray-500 transition hover:text-gray-500/75" href="#">
-                                History
-                            </a>
-                        </li>
-
-                        <li>
-                            <a class="text-gray-500 transition hover:text-gray-500/75" href="#">
-                                Services
+                            <a class="text-gray-500 transition hover:text-gray-500/75" href="{{ route('contact') }}">
+                                Contact
                             </a>
                         </li>
 
@@ -42,7 +30,19 @@
 
                         <li>
                             <a class="text-gray-500 transition hover:text-gray-500/75" href="#">
-                                Blog
+                                Services
+                            </a>
+                        </li>
+
+                        <li>
+                            <a class="text-gray-500 transition hover:text-gray-500/75" href="{{ route('faqs') }}">
+                                FAQs
+                            </a>
+                        </li>
+
+                        <li>
+                            <a class="text-gray-500 transition hover:text-gray-500/75" href="#">
+                                Articles
                             </a>
                         </li>
                     </ul>
@@ -50,13 +50,13 @@
 
                 <div class="flex items-center gap-4">
                     <div class="sm:flex sm:gap-4">
-                        <a class="rounded-md bg-rose-600 px-4 py-1.5 sm:px-5 sm:py-2.5 text-sm font-medium text-white shadow-sm"
+                        <a class="rounded-md bg-red-600 px-4 py-1.5 sm:px-5 sm:py-2.5 text-sm font-medium text-white shadow-sm"
                             href="#">
                             Login
                         </a>
 
                         <div class="hidden sm:flex">
-                            <a class="rounded-md bg-gray-100 px-5 py-2.5 text-sm font-medium text-rose-600" href="#">
+                            <a class="rounded-md bg-gray-100 px-5 py-2.5 text-sm font-medium text-red-600" href="#">
                                 Register
                             </a>
                         </div>

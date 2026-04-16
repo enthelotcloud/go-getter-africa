@@ -18,7 +18,9 @@
 </head>
 <body>
     @include('layouts.guest.header')
-    @yield('content')
+    <div class="relative bg-gradient-to-br from-gray-900 to-gray-800 text-white overflow-hidden">
+        @yield('content')
+    </div>
     @include('layouts.guest.footer')
     @livewireScripts
 </body>
