@@ -1,139 +1,123 @@
- @extends('layouts.guest.app')
+@extends('layouts.guest.app')
+
 @section('content')
-    <div class="py-20 id="faq">
-        <div class="container mx-auto px-6">
-            <div class="text-center mb-16">
-                <h2 class="text-3xl md:text-4xl font-bold mb-4">Frequently Asked Questions</h2>
-                <p class="text-gray-600 max-w-2xl mx-auto">Find answers to our most commonly asked questions.</p>
+<div class="bg-slate-950 text-white selection:bg-red-600/30 min-h-screen pb-20">
+
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 lg:py-16">
+
+        {{-- Consistent Heading Block --}}
+        <div class="mb-12 lg:mb-16">
+            <div class="flex items-center gap-3 mb-4">
+                <span class="relative flex h-3 w-3">
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-500 opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+                </span>
+                <h1 class="text-xl sm:text-2xl lg:text-2xl font-bold text-white  tracking-wider">
+                    Frequently Asked Questions
+                </h1>
+            </div>
+            <p class="text-lg lg:text-xl text-gray-400">
+                Have questions about Go-Getter Brand Africa? We have compiled answers to the most common inquiries regarding our branding and empowerment services.
+            </p>
+        </div>
+
+        {{-- FAQ Accordion Container --}}
+        <div class="space-y-4" x-data="{ active: null }">
+
+            {{-- Question 1 --}}
+            <div class="rounded-2xl border border-white/5 bg-slate-900/40 overflow-hidden transition-all duration-300"
+                 :class="active === 1 ? 'border-red-600/30 bg-slate-900' : ''">
+                <button @click="active !== 1 ? active = 1 : active = null"
+                        class="flex w-full items-center justify-between p-6 text-left focus:outline-none">
+                    <span class="text-lg font-bold" :class="active === 1 ? 'text-red-500' : 'text-white'">
+                        What is Go-Getter Brand Africa?
+                    </span>
+                    <svg class="h-6 w-6 transform transition-transform duration-300"
+                         :class="active === 1 ? 'rotate-180 text-red-500' : 'text-gray-500'"
+                         fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                </button>
+                <div x-show="active === 1" x-collapse x-cloak>
+                    <div class="px-6 pb-6 text-gray-400 leading-relaxed">
+                        Go-Getter Brand Africa is a vibrant branding and empowerment company based in Nairobi, Kenya. We focus on individual and corporate branding to contribute to the national GDP and ensure African brands can compete globally.
+                    </div>
+                </div>
             </div>
 
-            <div class="max-w-3xl mx-auto">
-                <!-- FAQ Item 1 -->
-                <div class="mb-6" x-data="{ open: false }">
-                    <button
-                        @click="open = !open"
-                        class="flex justify-between items-center w-full bg-gray-900 hover:bg-gray-700 px-6 py-4 rounded-lg text-left transition-all duration-200"
-                    >
-                        <h3 class="font-bold text-lg">How long does installation take?</h3>
-                        <span class="ml-4 flex-shrink-0 text-yellow-500" x-show="!open">
-                            <i class="fas fa-plus"></i>
-                        </span>
-                        <span class="ml-4 flex-shrink-0 text-yellow-500" x-show="open">
-                            <i class="fas fa-minus"></i>
-                        </span>
-                    </button>
-                    <div
-                        x-show="open"
-                        x-transition:enter="transition ease-out duration-200"
-                        x-transition:enter-start="opacity-0 -translate-y-2"
-                        x-transition:enter-end="opacity-100 translate-y-0"
-                        class="pl-6 pr-4 py-4"
-                    >
-                        <p class="text-gray-50">Most standard playset installations take between 4-8 hours, depending on the complexity of your chosen design. Our professional installation team will arrive on the scheduled day with all necessary tools and equipment to complete the job efficiently.</p>
+            {{-- Question 2 --}}
+            <div class="rounded-2xl border border-white/5 bg-slate-900/40 overflow-hidden transition-all duration-300"
+                 :class="active === 2 ? 'border-red-600/30 bg-slate-900' : ''">
+                <button @click="active !== 2 ? active = 2 : active = null"
+                        class="flex w-full items-center justify-between p-6 text-left">
+                    <span class="text-lg font-bold" :class="active === 2 ? 'text-red-500' : 'text-white'">
+                        Who do you target for your empowerment programs?
+                    </span>
+                    <svg class="h-6 w-6 transform transition-transform" :class="active === 2 ? 'rotate-180 text-red-500' : 'text-gray-500'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                </button>
+                <div x-show="active === 2" x-collapse x-cloak>
+                    <div class="px-6 pb-6 text-gray-400 leading-relaxed">
+                        We primarily target Youths, Women, and People Living with Disabilities (PLWDs). We also work with leaders to enhance productivity and accountability within the community.
                     </div>
                 </div>
+            </div>
 
-                <!-- FAQ Item 2 -->
-                <div class="mb-6" x-data="{ open: false }">
-                    <button
-                        @click="open = !open"
-                        class="flex justify-between items-center w-full bg-gray-900 hover:bg-gray-700 px-6 py-4 rounded-lg text-left transition-all duration-200"
-                    >
-                        <h3 class="font-bold text-lg">What type of maintenance is required?</h3>
-                        <span class="ml-4 flex-shrink-0 text-yellow-500" x-show="!open">
-                            <i class="fas fa-plus"></i>
-                        </span>
-                        <span class="ml-4 flex-shrink-0 text-yellow-500" x-show="open">
-                            <i class="fas fa-minus"></i>
-                        </span>
-                    </button>
-                    <div
-                        x-show="open"
-                        x-transition:enter="transition ease-out duration-200"
-                        x-transition:enter-start="opacity-0 -translate-y-2"
-                        x-transition:enter-end="opacity-100 translate-y-0"
-                        class="pl-6 pr-4 py-4"
-                    >
-                        <p class="text-gray-50">Our vinyl playsets require minimal maintenance. Simply rinse with a garden hose as needed to remove dirt or debris. Unlike wooden sets, there's no need for staining, sealing, or checking for splinters. We recommend checking hardware connections once a year to ensure everything remains tight and secure.</p>
+            {{-- Question 3 --}}
+            <div class="rounded-2xl border border-white/5 bg-slate-900/40 overflow-hidden transition-all duration-300"
+                 :class="active === 3 ? 'border-red-600/30 bg-slate-900' : ''">
+                <button @click="active !== 3 ? active = 3 : active = null"
+                        class="flex w-full items-center justify-between p-6 text-left">
+                    <span class="text-lg font-bold" :class="active === 3 ? 'text-red-500' : 'text-white'">
+                        What branding services do you offer?
+                    </span>
+                    <svg class="h-6 w-6 transform transition-transform" :class="active === 3 ? 'rotate-180 text-red-500' : 'text-gray-500'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                </button>
+                <div x-show="active === 3" x-collapse x-cloak>
+                    <div class="px-6 pb-6 text-gray-400 leading-relaxed">
+                        We offer a flexible and nimble approach that includes digital literacy, market linkage, strategy "strike and read" results, and analytics to quantify the effectiveness of your branding efforts.
                     </div>
                 </div>
+            </div>
 
-                <!-- FAQ Item 3 -->
-                <div class="mb-6" x-data="{ open: false }">
-                    <button
-                        @click="open = !open"
-                        class="flex justify-between items-center w-full bg-gray-900 hover:bg-gray-700 px-6 py-4 rounded-lg text-left transition-all duration-200"
-                    >
-                        <h3 class="font-bold text-lg">Do you offer financing options?</h3>
-                        <span class="ml-4 flex-shrink-0 text-yellow-500" x-show="!open">
-                            <i class="fas fa-plus"></i>
-                        </span>
-                        <span class="ml-4 flex-shrink-0 text-yellow-500" x-show="open">
-                            <i class="fas fa-minus"></i>
-                        </span>
-                    </button>
-                    <div
-                        x-show="open"
-                        x-transition:enter="transition ease-out duration-200"
-                        x-transition:enter-start="opacity-0 -translate-y-2"
-                        x-transition:enter-end="opacity-100 translate-y-0"
-                        class="pl-6 pr-4 py-4"
-                    >
-                        <p class="text-gray-50">Yes, we offer several financing options to help make your dream playset affordable. During your consultation, our team can explain the various payment plans available, including 0% interest options for qualified customers.</p>
+            {{-- Question 4 --}}
+            <div class="rounded-2xl border border-white/5 bg-slate-900/40 overflow-hidden transition-all duration-300"
+                 :class="active === 4 ? 'border-red-600/30 bg-slate-900' : ''">
+                <button @click="active !== 4 ? active = 4 : active = null"
+                        class="flex w-full items-center justify-between p-6 text-left">
+                    <span class="text-lg font-bold" :class="active === 4 ? 'text-red-500' : 'text-white'">
+                        How does the "Value Equation" work?
+                    </span>
+                    <svg class="h-6 w-6 transform transition-transform" :class="active === 4 ? 'rotate-180 text-red-500' : 'text-gray-500'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                </button>
+                <div x-show="active === 4" x-collapse x-cloak>
+                    <div class="px-6 pb-6 text-gray-400 leading-relaxed">
+                        We believe <strong class="text-white">Value = Price x Targeting</strong>. Our highly skilled analytics team helps clients pinpoint where marketing investments are underperforming so we can take corrective action to maximize ROI.
                     </div>
                 </div>
+            </div>
 
-                <!-- FAQ Item 4 -->
-                <div class="mb-6" x-data="{ open: false }">
-                    <button
-                        @click="open = !open"
-                        class="flex justify-between items-center w-full bg-gray-900 hover:bg-gray-700 px-6 py-4 rounded-lg text-left transition-all duration-200"
-                    >
-                        <h3 class="font-bold text-lg">What warranty do your playsets include?</h3>
-                        <span class="ml-4 flex-shrink-0 text-yellow-500" x-show="!open">
-                            <i class="fas fa-plus"></i>
-                        </span>
-                        <span class="ml-4 flex-shrink-0 text-yellow-500" x-show="open">
-                            <i class="fas fa-minus"></i>
-                        </span>
-                    </button>
-                    <div
-                        x-show="open"
-                        x-transition:enter="transition ease-out duration-200"
-                        x-transition:enter-start="opacity-0 -translate-y-2"
-                        x-transition:enter-end="opacity-100 translate-y-0"
-                        class="pl-6 pr-4 py-4"
-                    >
-                        <p class="text-gray-50">All Demo come with our comprehensive warranty that covers structural components for 15 years, vinyl materials for 10 years, and accessories for 1 year. We stand behind the quality of our products and are committed to your family's satisfaction.</p>
-                    </div>
-                </div>
+        </div>
 
-                <!-- FAQ Item 5 -->
-                <div class="mb-6" x-data="{ open: false }">
-                    <button
-                        @click="open = !open"
-                        class="flex justify-between items-center w-full bg-gray-900 hover:bg-gray-700 px-6 py-4 rounded-lg text-left transition-all duration-200"
-                    >
-                        <h3 class="font-bold text-lg">Can I add accessories later?</h3>
-                        <span class="ml-4 flex-shrink-0 text-yellow-500" x-show="!open">
-                            <i class="fas fa-plus"></i>
-                        </span>
-                        <span class="ml-4 flex-shrink-0 text-yellow-500" x-show="open">
-                            <i class="fas fa-minus"></i>
-                        </span>
-                    </button>
-                    <div
-                        x-show="open"
-                        x-transition:enter="transition ease-out duration-200"
-                        x-transition:enter-start="opacity-0 -translate-y-2"
-                        x-transition:enter-end="opacity-100 translate-y-0"
-                        class="pl-6 pr-4 py-4"
-                    >
-                        <p class="text-gray-50">Absolutely! Our playsets are designed to grow with your family. You can easily add or upgrade accessories as your children's interests and abilities develop. From additional swings to challenging climbing features, we make it easy to enhance your playset over time.</p>
-                    </div>
-                </div>
+        {{-- Secondary CTA for unasked questions --}}
+        <div class="mt-20 p-8 rounded-3xl bg-red-600/5 border border-red-600/20 text-center">
+            <h3 class="text-xl font-bold mb-2 text-white uppercase tracking-tight">Still have questions?</h3>
+            <p class="text-gray-400 mb-6">Our team is available 24/7 to discuss your project needs.</p>
+            <div class="flex flex-wrap justify-center gap-4">
+                <a href="https://wa.me/254710878056" class="px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl transition flex items-center gap-2">
+                    WhatsApp Support
+                </a>
+                <a href="{{ route('contact') }}" class="px-6 py-3 border border-red-600 text-red-600 hover:bg-red-600 hover:text-white font-bold rounded-xl transition">
+                    Contact Us
+                </a>
             </div>
         </div>
-    </div>
-@endsection
 
+    </div>
+</div>
+@endsection
