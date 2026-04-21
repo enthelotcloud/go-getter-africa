@@ -13,7 +13,7 @@
                         <li><a class="text-gray-300 transition hover:text-red-500" href="{{ route('about') }}">About</a></li>
                         <li><a class="text-gray-300 transition hover:text-red-500" href="{{ route('contact') }}">Contact</a></li>
                         <li><a class="text-gray-300 transition hover:text-red-500" href="#">Projects</a></li>
-                        <li><a class="text-gray-300 transition hover:text-red-500" href="#">Services</a></li>
+                        <li><a class="text-gray-300 transition hover:text-red-500" href="{{ route('services') }}">Services</a></li>
                         <li><a class="text-gray-300 transition hover:text-red-500" href="{{ route('faqs') }}">FAQs</a></li>
                     </ul>
                 </nav>
@@ -76,8 +76,8 @@
                 <nav class="space-y-6">
                     <a href="{{ route('about') }}" class="block text-xl font-semibold text-white hover:text-red-500 transition">About</a>
                     <a href="{{ route('contact') }}" class="block text-xl font-semibold text-white hover:text-red-500 transition">Contact</a>
+                    <a href="{{ route('services') }}" class="block text-xl font-semibold text-white hover:text-red-500 transition">Services</a>
                     <a href="#" class="block text-xl font-semibold text-white hover:text-red-500 transition">Projects</a>
-                    <a href="#" class="block text-xl font-semibold text-white hover:text-red-500 transition">Services</a>
                     <a href="{{ route('faqs') }}" class="block text-xl font-semibold text-white hover:text-red-500 transition">FAQs</a>
                 </nav>
 
