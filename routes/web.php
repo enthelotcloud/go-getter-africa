@@ -16,4 +16,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::view('dashboard', 'dashboard')->name('dashboard');
 });
 
+Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () {
+    
+    Route::livewire('/projects', 'admin.project-manager')->name('projects');
+    
+});
+
 require __DIR__.'/settings.php';

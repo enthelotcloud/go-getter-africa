@@ -113,6 +113,22 @@
         </div>
     </section>
 
+    {{-- Our Projects Section --}}
+    <section class="py-24">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="mb-16 space-y-4">
+                <h3 class="text-sm font-black uppercase tracking-widest text-red-600">Our Projects</h3>
+                <h4 class="text-2xl font-bold text-white">Driving Impact Through Strategic Branding</h4>
+            </div>
+
+            {{-- The component handles the grid and the "View All" link --}}
+            <livewire:projects-home />
+            
+        </div>
+    </section>
+
+
+
     {{-- Our Services Section (Cards) --}}
     <section class="py-24 bg-slate-900/20">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
