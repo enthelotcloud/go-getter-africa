@@ -12,7 +12,7 @@
                     <ul class="flex items-center gap-8 text-sm font-medium">
                         <li><a class="text-gray-300 transition hover:text-red-500" href="{{ route('about') }}">About</a></li>
                         <li><a class="text-gray-300 transition hover:text-red-500" href="{{ route('contact') }}">Contact</a></li>
-                        <li><a class="text-gray-300 transition hover:text-red-500" href="#">Projects</a></li>
+                        <li><a class="text-gray-300 transition hover:text-red-500" href="{{route('projects')}}">Projects</a></li>
                         <li><a class="text-gray-300 transition hover:text-red-500" href="{{ route('services') }}">Services</a></li>
                         <li><a class="text-gray-300 transition hover:text-red-500" href="{{ route('faqs') }}">FAQs</a></li>
                     </ul>

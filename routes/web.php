@@ -11,6 +11,7 @@ Route::view('terms-of-service', 'terms')->name('terms');
 Route::view('privacy-policy', 'privacy')->name('privacy');
 Route::view('services', 'services')->name('services');
 Route::livewire('projects','pages::projects')->name('projects');
+Route::livewire('/projects/{project:slug}', 'pages::projects-show')->name('projects.show');
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::view('dashboard', 'dashboard')->name('dashboard');

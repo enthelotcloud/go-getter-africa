@@ -19,7 +19,11 @@
 <body>
     @include('layouts.guest.header')
     <div class="relative bg-gradient-to-br from-gray-900 to-gray-800 text-white overflow-hidden">
-        @yield('content')
+        @if (isset($slot))
+            {{ $slot }}
+        @else
+            @yield('content')
+        @endif
     </div>
     @include('layouts.guest.footer')
     @livewireScripts
