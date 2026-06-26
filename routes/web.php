@@ -10,16 +10,16 @@ Route::view('faqs', 'faqs')->name('faqs');
 Route::view('terms-of-service', 'terms')->name('terms');
 Route::view('privacy-policy', 'privacy')->name('privacy');
 Route::view('services', 'services')->name('services');
-
+Route::livewire('projects','pages::projects')->name('projects');
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::view('dashboard', 'dashboard')->name('dashboard');
 });
 
 Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () {
-    
+
     Route::livewire('/projects', 'admin.project-manager')->name('projects');
-    
+
 });
 
 require __DIR__.'/settings.php';
