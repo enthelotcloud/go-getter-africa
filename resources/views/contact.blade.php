@@ -64,6 +64,60 @@
                                 <p class="text-lg font-bold text-white group-hover:text-gray-300 transition truncate">info@gogetterbrandafrica.co.ke</p>
                             </div>
                         </a>
+
+                        {{-- M-Pesa Payment Card --}}
+                        <div class="p-6 rounded-2xl bg-slate-900/30 border border-white/5 border-l-4 border-l-green-500 hover:bg-slate-900/60 transition-all duration-300" x-data="{ copied: false, showNotification: false }">
+                            <div class="flex items-start gap-6">
+                                <div class="w-12 h-12 bg-green-500/10 rounded-xl flex items-center justify-center shrink-0">
+                                    <img src="{{ asset('mpesa1.png') }}" alt="M-Pesa" class="w-full h-full object-contain rounded-xl">
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-3">M-Pesa Payment</p>
+                                    <div class="space-y-2">
+                                        <div class="flex items-center gap-3 flex-wrap">
+                                            <div class="flex items-baseline gap-2">
+                                                <span class="text-xs text-gray-500 font-medium">Till No:</span>
+                                                <span class="text-lg font-bold text-white tracking-wide">3768696</span>
+                                            </div>
+                                            <button
+                                                @click="navigator.clipboard.writeText('3768696'); copied = true; showNotification = true; setTimeout(() => showNotification = false, 3000)"
+                                                class="px-3 py-1.5 text-xs font-bold uppercase tracking-wider rounded-lg bg-green-600/20 text-green-400 hover:bg-green-600 hover:text-white transition-all duration-200 flex items-center gap-1.5 shrink-0"
+                                                :class="{ 'bg-green-600 text-white': copied }">
+                                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                                                </svg>
+                                                <span x-text="copied ? 'Copied!' : 'Copy'">Copy</span>
+                                            </button>
+                                        </div>
+                                        <p class="text-sm text-gray-400">Name: Go-Getter Brand Africa</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {{-- Green Notification --}}
+                            <div
+                                x-show="showNotification"
+                                x-transition:enter="transition ease-out duration-300"
+                                x-transition:enter-start="opacity-0 transform translate-y-2"
+                                x-transition:enter-end="opacity-100 transform translate-y-0"
+                                x-transition:leave="transition ease-in duration-200"
+                                x-transition:leave-start="opacity-100 transform translate-y-0"
+                                x-transition:leave-end="opacity-0 transform translate-y-2"
+                                class="mt-4 flex items-center justify-between p-3 rounded-lg bg-green-600/20 border border-green-500/30"
+                                style="display: none;">
+                                <div class="flex items-center gap-2">
+                                    <svg class="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                    </svg>
+                                    <span class="text-sm text-green-400 font-medium">Till number copied successfully!</span>
+                                </div>
+                                <button @click="showNotification = false" class="text-green-400 hover:text-green-300 transition-colors">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
