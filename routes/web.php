@@ -16,6 +16,11 @@ Route::view('services', 'services')->name('services');
 Route::livewire('projects','pages::projects')->name('projects');
 Route::livewire('/projects/{project:slug}', 'pages::projects-show')->name('projects.show');
 
+// Public Voting Pages
+Route::livewire('/polls', 'pages::nomination-categories')->name('polls');
+Route::livewire('/polls/{category:slug}', 'pages::nomination-category-single')->name('polls.category');
+Route::livewire('/vote/{nomination:code}', 'pages::nomination-single')->name('polls.vote');
+
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::view('dashboard', 'dashboard')->name('dashboard');
 });
@@ -25,9 +30,17 @@ Route::middleware(['auth'])->group(function () {
     // Admins Routes
     Route::middleware(['role:admin'])->prefix('admin')->name('admin.')->group(function () {
         Route::livewire('/dashboard','admin::dashboard')->name('dashboard');
+
         Route::livewire('/categories','admin::nomination-categories')->name('nomination-categories');
+
         Route::livewire('/nominations','admin::nominations')->name('nominations');
+
         Route::livewire('/projects', 'admin.project-manager')->name('projects');
+
+        Route::livewire('/token-packages', 'admin::token-packages')->name('token-packages');
+
+        Route::livewire('/wallets', 'admin::wallets')->name('wallets');
+
     });
 
     // Staffs Routes

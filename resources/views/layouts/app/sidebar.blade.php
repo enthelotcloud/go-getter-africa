@@ -31,6 +31,14 @@
                             {{ __('Nominations') }}
                         </flux:sidebar.item>
 
+                        <flux:sidebar.item icon="inbox-stack" :href="route('admin.token-packages')" :current="request()->routeIs('admin.token-packages')" wire:navigate>
+                            {{ __('Packages') }}
+                        </flux:sidebar.item>
+
+                        <flux:sidebar.item icon="wallet" :href="route('admin.wallets')" :current="request()->routeIs('admin.wallets')" wire:navigate>
+                            {{ __('Wallets') }}
+                        </flux:sidebar.item>
+
                     @elseif(auth()->user()->isStaff())
                         <flux:sidebar.item icon="home" :href="route('staff.dashboard')" :current="request()->routeIs('staff.dashboard')" wire:navigate>
                             {{ __('Dashboard') }}

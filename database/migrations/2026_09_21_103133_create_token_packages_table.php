@@ -13,6 +13,10 @@ return new class extends Migration
     {
         Schema::create('token_packages', function (Blueprint $table) {
             $table->id();
+            $table->string('name');
+            $table->unsignedInteger('tokens');
+            $table->decimal('price_kes', 10, 2);
+            $table->boolean('is_active')->default(true);
             $table->timestamps();
         });
     }

@@ -13,6 +13,23 @@ return new class extends Migration
     {
         Schema::create('transactions', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('user_id')->nullable()->constrained()->nullOnDelete();
+            $table->string('type');
+            $table->string('phone_number');
+            $table->decimal('amount', 10, 2);
+
+            // M-PESA specific tracking
+            $table->string('merchant_request_id')->nullable();
+            $table->string('checkout_request_id')->nullable()->index();
+            $table->string('receipt_number')->nullable()->unique();
+
+            $table->enum('status', ['pending', 'completed', 'failed'])->default('pending');
+            $table->string('result_desc')->nullable();
+
+            // For guest votes: Map this transaction to a specific nominee
+            $table->foreignId('nomination_id')->nullable()->constrained()->nullOnDelete();
+            $table->unsignedInteger('tokens_bought')->nullable();
+
             $table->timestamps();
         });
     }
