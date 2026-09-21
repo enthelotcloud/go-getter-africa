@@ -10,35 +10,9 @@ Route::get('/user', function (Request $request) {
 })->middleware('auth:sanctum');
 
 Route::prefix('mpesa')->group(function () {
-    Route::post('/validate', [MpesaController::class, 'validatePayment']);
-    Route::post('/confirm', [MpesaController::class, 'confirmPayment']);
-});
-
-// STK Push Callback
-Route::post('/mpesa/stk-callback', function (Request $request) {
-    Log::info('STK Callback received:', $request->all());
-
-    $data = $request->json('Body.stkCallback');
-
-    if ($data['ResultCode'] == 0) {
-        // Payment successful
-        $meta = $data['CallbackMetadata']['Item'];
-        $receipt = collect($meta)->firstWhere('Name', 'MpesaReceiptNumber')['Value'];
-
-        // Find the pending transaction using an identifier you pass during creation
-        // and update it to 'completed' with the $receipt.
-    }
-
-    return response()->json(['ResultCode' => 0, 'ResultDesc' => 'Accepted']);
-});
-
-// B2C Callbacks
-Route::post('/mpesa/b2c-result', function (Request $request) {
-    Log::info('B2C Result:', $request->all());
-    return response()->json(['ResultCode' => 0, 'ResultDesc' => 'Accepted']);
-});
-
-Route::post('/mpesa/b2c-timeout', function (Request $request) {
-    Log::info('B2C Timeout:', $request->all());
-    return response()->json(['ResultCode' => 0, 'ResultDesc' => 'Accepted']);
+    Route::post('/stk-callback', [MpesaController::class, 'stkCallback']);
+    Route::post('/b2c-result',   [MpesaController::class, 'b2cResult']);
+    Route::post('/b2c-timeout',  [MpesaController::class, 'b2cTimeout']);
+    Route::post('/validate',     [MpesaController::class, 'validatePayment']);
+    Route::post('/confirm',      [MpesaController::class, 'confirmPayment']);
 });
