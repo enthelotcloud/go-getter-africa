@@ -3,10 +3,16 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\MpesaController;
 
 Route::get('/user', function (Request $request) {
     return $request->user();
 })->middleware('auth:sanctum');
+
+Route::prefix('mpesa')->group(function () {
+    Route::post('/validate', [MpesaController::class, 'validatePayment']);
+    Route::post('/confirm', [MpesaController::class, 'confirmPayment']);
+});
 
 // STK Push Callback
 Route::post('/mpesa/stk-callback', function (Request $request) {
