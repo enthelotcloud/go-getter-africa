@@ -2,6 +2,12 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\GoogleAuthController;
+use App\Http\Controllers\MpesaController;
+
+Route::prefix('mpesa')->group(function () {
+    Route::post('/validate', [MpesaController::class, 'validatePayment']);
+    Route::post('/confirm', [MpesaController::class, 'confirmPayment']);
+});
 
 Route::get('/auth/google', [GoogleAuthController::class, 'redirect'])->name('google.login');
 Route::get('/auth/google/callback', [GoogleAuthController::class, 'callback']);

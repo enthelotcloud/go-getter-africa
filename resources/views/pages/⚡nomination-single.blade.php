@@ -7,7 +7,7 @@ use Livewire\Component;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Validate;
 
-new #[Layout('layouts.app')] class extends Component {
+new #[Layout('layouts.guest.app')] class extends Component {
 
     public Nomination $nomination;
 
