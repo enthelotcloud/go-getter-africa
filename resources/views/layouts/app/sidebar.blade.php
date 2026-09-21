@@ -6,19 +6,55 @@
     <body class="min-h-screen bg-white dark:bg-zinc-800">
         <flux:sidebar sticky collapsible="mobile" class="border-e border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900">
             <flux:sidebar.header>
-                <x-app-logo :sidebar="true" href="{{ route('dashboard') }}" wire:navigate />
+                <!-- Logo routes to home to prevent route errors if 'dashboard' is strictly prefixed -->
+                <x-app-logo :sidebar="true" href="/" wire:navigate />
                 <flux:sidebar.collapse class="lg:hidden" />
             </flux:sidebar.header>
 
             <flux:sidebar.nav>
                 <flux:sidebar.group :heading="__('Platform')" class="grid">
-                    <flux:sidebar.item icon="home" :href="route('dashboard')" :current="request()->routeIs('dashboard')" wire:navigate>
-                        {{ __('Dashboard') }}
-                    </flux:sidebar.item>
 
-                    <flux:sidebar.item icon="folder" :href="route('admin.projects')" :current="request()->routeIs('admin.projects')" wire:navigate>
-                        {{ __('Projects') }}
-                    </flux:sidebar.item>
+                    @if(auth()->user()->isAdmin())
+                        <flux:sidebar.item icon="home" :href="route('admin.dashboard')" :current="request()->routeIs('admin.dashboard')" wire:navigate>
+                            {{ __('Dashboard') }}
+                        </flux:sidebar.item>
+
+                        <flux:sidebar.item icon="folder" :href="route('admin.projects')" :current="request()->routeIs('admin.projects')" wire:navigate>
+                            {{ __('Projects') }}
+                        </flux:sidebar.item>
+
+                        <flux:sidebar.item icon="rectangle-stack" :href="route('admin.nomination-categories')" :current="request()->routeIs('admin.nomination-categories')" wire:navigate>
+                            {{ __('Categories') }}
+                        </flux:sidebar.item>
+
+                        <flux:sidebar.item icon="rectangle-stack" :href="route('admin.nominations')" :current="request()->routeIs('admin.nominations')" wire:navigate>
+                            {{ __('Nominations') }}
+                        </flux:sidebar.item>
+
+                    @elseif(auth()->user()->isStaff())
+                        <flux:sidebar.item icon="home" :href="route('staff.dashboard')" :current="request()->routeIs('staff.dashboard')" wire:navigate>
+                            {{ __('Dashboard') }}
+                        </flux:sidebar.item>
+
+                        <flux:sidebar.item icon="rectangle-stack" href="/staff/nomination-categories" :current="request()->is('staff/nomination-categories')" wire:navigate>
+                            {{ __('Categories') }}
+                        </flux:sidebar.item>
+
+                        <flux:sidebar.item icon="users" href="/staff/nominations" :current="request()->is('staff/nominations')" wire:navigate>
+                            {{ __('Nominees') }}
+                        </flux:sidebar.item>
+
+                    @elseif(auth()->user()->isNominee())
+                        <flux:sidebar.item icon="home" :href="route('nominee.dashboard')" :current="request()->routeIs('nominee.dashboard')" wire:navigate>
+                            {{ __('My Campaign') }}
+                        </flux:sidebar.item>
+
+                    @elseif(auth()->user()->isVoter())
+                        <flux:sidebar.item icon="home" :href="route('voter.dashboard')" :current="request()->routeIs('voter.dashboard')" wire:navigate>
+                            {{ __('Voting Hub') }}
+                        </flux:sidebar.item>
+                    @endif
+
                 </flux:sidebar.group>
             </flux:sidebar.nav>
 

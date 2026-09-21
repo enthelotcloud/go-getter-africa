@@ -1,7 +1,10 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\GoogleAuthController;
 
+Route::get('/auth/google', [GoogleAuthController::class, 'redirect'])->name('google.login');
+Route::get('/auth/google/callback', [GoogleAuthController::class, 'callback']);
 
 Route::view('/', 'home')->name('home');
 Route::view('contact', 'contact')->name('contact');
@@ -17,10 +20,31 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::view('dashboard', 'dashboard')->name('dashboard');
 });
 
-Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () {
+Route::middleware(['auth'])->group(function () {
 
-    Route::livewire('/projects', 'admin.project-manager')->name('projects');
+    // Admins Routes
+    Route::middleware(['role:admin'])->prefix('admin')->name('admin.')->group(function () {
+        Route::livewire('/dashboard','admin::dashboard')->name('dashboard');
+        Route::livewire('/categories','admin::nomination-categories')->name('nomination-categories');
+        Route::livewire('/nominations','admin::nominations')->name('nominations');
+        Route::livewire('/projects', 'admin.project-manager')->name('projects');
+    });
 
+    // Staffs Routes
+    Route::middleware(['role:staff'])->prefix('staff')->name('staff.')->group(function () {
+        Route::livewire('/dashboard','staff::dashboard')->name('dashboard');
+    });
+
+    // Voters Routes
+    Route::middleware(['role:voter'])->prefix('voter')->name('voter.')->group(function () {
+        Route::livewire('/dashboard','voter::dashboard')->name('dashboard');
+    });
+
+    // Nominees Routes
+    Route::middleware(['role:nominee'])->prefix('nominee')->name('nominee.')->group(function () {
+        Route::livewire('/dashboard','nominee::dashboard')->name('dashboard');
+    });
 });
+
 
 require __DIR__.'/settings.php';
