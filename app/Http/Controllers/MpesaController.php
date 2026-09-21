@@ -26,7 +26,18 @@ class MpesaController extends Controller
     }
 
     /**
-     * 1. Logged-In User Buying Tokens
+     * Helper to dynamically calculate the base cost of 1 vote
+     * based on your lowest active Token Package.
+     */
+    protected function getBaseCostPerVote()
+    {
+        $package = TokenPackage::where('is_active', true)->orderBy('price_kes', 'asc')->first();
+        // If a package is 50 KES for 5 tokens, rate is 10 KES per vote. Defaults to 10 if no package exists.
+        return $package ? ($package->price_kes / max(1, $package->tokens)) : 10;
+    }
+
+    /**
+     * 1. Logged-In User Buying Tokens (Uses explicit Package ID)
      */
     public function buyTokens(Request $request)
     {
@@ -39,7 +50,6 @@ class MpesaController extends Controller
         $package = TokenPackage::findOrFail($request->token_package_id);
         $reference = 'Tokens_' . $request->user_id;
 
-        // Trigger STK Push
         $response = $this->mpesa->stkPush($request->phone_number, $package->price_kes, $reference);
 
         if (isset($response['CheckoutRequestID'])) {
@@ -61,14 +71,14 @@ class MpesaController extends Controller
     }
 
     /**
-     * 2. Guest User Voting Directly (No Tokens)
+     * 2. Guest User Voting Directly (Calculates from amount entered)
      */
     public function guestVote(Request $request)
     {
         $request->validate([
             'phone_number' => 'required|string',
             'nomination_id' => 'required|exists:nominations,id',
-            'amount' => 'required|numeric|min:10' // Minimum KES per vote
+            'amount' => 'required|numeric|min:' . $this->getBaseCostPerVote()
         ]);
 
         $nomination = Nomination::findOrFail($request->nomination_id);
@@ -87,7 +97,7 @@ class MpesaController extends Controller
                 'status' => 'pending'
             ]);
 
-            return response()->json(['success' => true, 'message' => 'STK Push sent. Please enter your PIN.']);
+            return response()->json(['success' => true, 'message' => 'STK Push sent.']);
         }
 
         return response()->json(['success' => false, 'message' => 'Failed to initiate STK Push.'], 500);
@@ -107,20 +117,16 @@ class MpesaController extends Controller
 
         if (!$checkoutRequestID) return response()->json(['status' => 'ignored']);
 
-        // Find the pending transaction
         $transaction = Transaction::where('checkout_request_id', $checkoutRequestID)->first();
 
-        // Prevent double processing if Daraja sends the callback twice
         if (!$transaction || $transaction->status !== 'pending') {
             return response()->json(['status' => 'already processed or not found']);
         }
 
         if ($resultCode == 0) {
-            // Payment Successful
             $meta = collect($data['CallbackMetadata']['Item']);
             $receipt = $meta->firstWhere('Name', 'MpesaReceiptNumber')['Value'] ?? 'UNKNOWN';
 
-            // Wrap in DB transaction so everything succeeds or everything rolls back
             DB::transaction(function () use ($transaction, $receipt, $resultDesc) {
                 $transaction->update([
                     'status' => 'completed',
@@ -150,6 +156,10 @@ class MpesaController extends Controller
                 // Scenario B: Guest User Voted Directly
                 elseif ($transaction->nomination_id) {
                     $nomination = Nomination::with('category', 'user')->find($transaction->nomination_id);
+
+                    // --- DYNAMIC PACKAGE MULTIPLIER ---
+                    $costPerVote = $this->getBaseCostPerVote();
+                    $votesEarned = max(1, floor($transaction->amount / $costPerVote));
                     $commission = $transaction->amount * $this->commissionRate;
 
                     // 1. Cast the Vote
@@ -157,15 +167,15 @@ class MpesaController extends Controller
                         'guest_phone' => $transaction->phone_number,
                         'nomination_id' => $nomination->id,
                         'nomination_category_id' => $nomination->nomination_category_id,
-                        'tokens_spent' => 0, // Direct KES vote
+                        'tokens_spent' => $votesEarned, // Saves dynamic amount
                         'commission_earned_kes' => $commission,
                         'transaction_id' => $transaction->id
                     ]);
 
-                    // Increment public total cache
-                    $nomination->increment('total_votes');
+                    // Increment public cache
+                    $nomination->increment('total_votes', $votesEarned);
 
-                    // 2. Pay the Nominee's Wallet (If the nominee has a registered User account)
+                    // 2. Pay the Nominee's Wallet
                     if ($nomination->user_id) {
                         $nomineeWallet = Wallet::firstOrCreate(
                             ['user_id' => $nomination->user_id],
@@ -179,25 +189,22 @@ class MpesaController extends Controller
                             'type' => 'commission_earned',
                             'amount' => $commission,
                             'currency' => 'KES',
-                            'description' => "Guest vote commission from {$transaction->phone_number}",
+                            'description' => "Guest vote commission ({$votesEarned} votes) from {$transaction->phone_number}",
                             'transaction_id' => $transaction->id
                         ]);
                     }
                 }
             });
         } else {
-            // Payment Failed (User cancelled, insufficient funds, etc.)
             $transaction->update([
                 'status' => 'failed',
                 'result_desc' => $resultDesc
             ]);
         }
 
-        // Always return success to Safaricom so they stop retrying
         return response()->json(['ResultCode' => 0, 'ResultDesc' => 'Accepted']);
     }
 
-    // B2C Callbacks (For when you implement withdrawals)
     public function b2cResult(Request $request)
     {
         Log::info('B2C Result:', $request->all());
