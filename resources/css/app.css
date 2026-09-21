@@ -64,3 +64,19 @@ select:focus[data-flux-control] {
 /* \[:where(&)\]:size-4 {
     @apply size-4;
 } */
+
+/* Inline search — dropdown visibility is driven by focus-within, not Alpine state */
+.inline-search .search-dropdown {
+    display: none;
+}
+.inline-search:focus-within .search-dropdown {
+    display: block;
+    animation: searchDropIn 0.15s ease-out;
+}
+@keyframes searchDropIn {
+    from { opacity: 0; transform: translateY(-4px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Keyboard focus ring for kbd hint */
+.inline-search kbd { user-select: none; }

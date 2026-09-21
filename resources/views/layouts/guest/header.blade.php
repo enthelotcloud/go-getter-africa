@@ -9,36 +9,61 @@
         ? ($roleDashboards[auth()->user()->role] ?? 'dashboard')
         : 'dashboard';
 
-    $navLinks = [
+    // Split nav around the search bar
+    $navBefore = [
         ['label' => 'About',    'route' => 'about',    'active' => 'about'],
         ['label' => 'Projects', 'route' => 'projects', 'active' => 'projects*'],
         ['label' => 'Votes',    'route' => 'polls',    'active' => 'polls*'],
+    ];
+    $navAfter = [
         ['label' => 'Services', 'route' => 'services', 'active' => 'services'],
         ['label' => 'Contact',  'route' => 'contact',  'active' => 'contact'],
         ['label' => 'FAQs',     'route' => 'faqs',     'active' => 'faqs'],
     ];
+
+    $allNavLinks = array_merge($navBefore, $navAfter); // for mobile drawer
 @endphp
 
 <header class="bg-slate-900/80 backdrop-blur-md sticky top-0 z-50 border-b border-white/5"
         x-data="{ mobileMenuOpen: false, userMenuOpen: false }">
-    <div class="mx-auto max-w-screen-xl px-4 sm:px-6 lg:px-8">
-        <div class="flex h-20 items-center justify-between gap-4">
+    <div class="mx-auto max-w-screen-2xl px-4 sm:px-6 lg:px-8">
+        <div class="flex h-20 items-center gap-4">
 
             {{-- Logo --}}
             <div class="flex-shrink-0">
                 <a class="block" href="/">
-                    <img src="{{ asset('go-logo.png') }}" alt="Go Getter Logo" class="h-10 sm:h-12 w-auto">
+                    <img src="{{ asset('go-getter-logo.png') }}" alt="Go Getter Logo" class="h-10 sm:h-12 w-auto">
                 </a>
             </div>
 
-            {{-- Desktop nav (lg+) --}}
-            <nav aria-label="Global" class="hidden lg:block flex-1">
-                <ul class="flex items-center justify-center gap-6 xl:gap-7 text-sm font-medium">
-                    @foreach ($navLinks as $link)
+            {{-- Desktop: nav with inline search --}}
+            <nav aria-label="Global" class="hidden lg:flex flex-1 items-center justify-center min-w-0">
+                <ul class="flex items-center gap-4 xl:gap-6 text-sm font-medium">
+                    {{-- Left links --}}
+                    @foreach ($navBefore as $link)
                         @php $isActive = request()->routeIs($link['active']); @endphp
                         <li>
                             <a href="{{ route($link['route']) }}"
-                               class="relative transition {{ $isActive ? 'text-white' : 'text-gray-300 hover:text-red-500' }}">
+                               class="relative whitespace-nowrap transition {{ $isActive ? 'text-white' : 'text-gray-300 hover:text-red-500' }}">
+                                {{ $link['label'] }}
+                                @if ($isActive)
+                                    <span class="absolute -bottom-2 left-0 right-0 h-0.5 bg-red-500 rounded-full"></span>
+                                @endif
+                            </a>
+                        </li>
+                    @endforeach
+
+                    {{-- Inline search — sits between Votes and Services --}}
+                    <li class="inline-flex">
+                        <livewire:global-search />
+                    </li>
+
+                    {{-- Right links --}}
+                    @foreach ($navAfter as $link)
+                        @php $isActive = request()->routeIs($link['active']); @endphp
+                        <li>
+                            <a href="{{ route($link['route']) }}"
+                               class="relative whitespace-nowrap transition {{ $isActive ? 'text-white' : 'text-gray-300 hover:text-red-500' }}">
                                 {{ $link['label'] }}
                                 @if ($isActive)
                                     <span class="absolute -bottom-2 left-0 right-0 h-0.5 bg-red-500 rounded-full"></span>
@@ -49,33 +74,30 @@
                 </ul>
             </nav>
 
+            {{-- Mobile spacer --}}
+            <div class="flex-1 lg:hidden"></div>
+
             {{-- Right-side actions --}}
             <div class="flex items-center gap-2 lg:gap-3 flex-shrink-0">
 
-                {{-- Search: full input on xl+, icon button on lg only --}}
-                <div class="hidden xl:block w-56 2xl:w-64">
-                    <livewire:global-search />
-                </div>
-
-                {{-- WhatsApp (only on very wide screens) --}}
+                {{-- WhatsApp (2xl only) --}}
                 <a href="https://wa.me/254710878056" target="_blank"
                    class="hidden 2xl:flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-green-500 border border-green-500/20 bg-green-500/5 px-3.5 py-2 rounded-full hover:bg-green-500/10 transition">
                     <span class="relative flex h-2 w-2">
                         <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
                         <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
                     </span>
-                    24/7 Support
+                    24/7
                 </a>
 
                 @auth
-                    {{-- Avatar dropdown --}}
                     <div class="relative hidden md:block" @click.outside="userMenuOpen = false">
                         <button @click="userMenuOpen = !userMenuOpen" type="button"
                                 class="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 pl-1.5 pr-3 py-1.5 hover:bg-white/10 transition">
                             <span class="h-8 w-8 rounded-full bg-red-600 text-white flex items-center justify-center text-sm font-bold uppercase">
                                 {{ Str::substr(auth()->user()->name, 0, 1) }}
                             </span>
-                            <span class="hidden lg:flex flex-col items-start leading-tight">
+                            <span class="hidden xl:flex flex-col items-start leading-tight">
                                 <span class="text-xs font-semibold text-white max-w-[100px] truncate">
                                     {{ Str::of(auth()->user()->name)->limit(12) }}
                                 </span>
@@ -139,7 +161,6 @@
                         </div>
                     </div>
                 @else
-                    {{-- Guest: Google login --}}
                     <a href="{{ route('google.login') }}"
                        class="hidden md:inline-flex items-center justify-center gap-2 rounded-full border border-white/10 bg-white/5 hover:bg-white/10 px-3.5 lg:px-5 py-2 text-sm font-semibold text-white transition">
                         <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24">
@@ -148,11 +169,10 @@
                             <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
                             <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
                         </svg>
-                        <span class="hidden lg:inline">Login</span>
+                        <span class="hidden xl:inline">Login</span>
                     </a>
                 @endauth
 
-                {{-- Mobile hamburger --}}
                 <button @click="mobileMenuOpen = true"
                         class="lg:hidden rounded-lg p-2 text-gray-400 hover:bg-white/10 transition"
                         aria-label="Open menu">
@@ -164,10 +184,9 @@
         </div>
     </div>
 
-    {{-- Mobile drawer --}}
+    {{-- Mobile drawer (unchanged, uses $allNavLinks) --}}
     <template x-teleport="body">
         <div x-show="mobileMenuOpen" x-cloak class="fixed inset-0 z-[100] lg:hidden" role="dialog" aria-modal="true">
-            {{-- Backdrop --}}
             <div x-show="mobileMenuOpen"
                  x-transition:enter="transition-opacity ease-linear duration-300"
                  x-transition:enter-start="opacity-0"
@@ -178,7 +197,6 @@
                  @click="mobileMenuOpen = false"
                  class="fixed inset-0 bg-slate-950/60 backdrop-blur-sm"></div>
 
-            {{-- Drawer panel --}}
             <div x-show="mobileMenuOpen"
                  x-transition:enter="transition ease-in-out duration-300 transform"
                  x-transition:enter-start="translate-x-full"
@@ -188,7 +206,6 @@
                  x-transition:leave-end="translate-x-full"
                  class="fixed inset-y-0 right-0 z-10 w-[300px] overflow-y-auto bg-slate-900/95 backdrop-blur-xl border-l border-white/10 p-6 shadow-2xl flex flex-col">
 
-                {{-- Drawer header --}}
                 <div class="flex items-center justify-between mb-6">
                     <img src="{{ asset('go-getter-logo.png') }}" alt="Logo" class="h-10 w-auto">
                     <button @click="mobileMenuOpen = false" class="text-gray-400 hover:text-white p-1" aria-label="Close">
@@ -198,12 +215,10 @@
                     </button>
                 </div>
 
-                {{-- Search inside drawer --}}
                 <div class="mb-6">
                     <livewire:global-search />
                 </div>
 
-                {{-- Auth card (mobile) --}}
                 @auth
                     <div class="mb-5 rounded-xl border border-white/10 bg-white/5 p-4 flex items-center gap-3">
                         <span class="h-10 w-10 rounded-full bg-red-600 text-white flex items-center justify-center text-sm font-bold uppercase shrink-0">
@@ -216,9 +231,8 @@
                     </div>
                 @endauth
 
-                {{-- Nav links --}}
                 <nav class="space-y-1">
-                    @foreach ($navLinks as $link)
+                    @foreach ($allNavLinks as $link)
                         @php $isActive = request()->routeIs($link['active']); @endphp
                         <a href="{{ route($link['route']) }}"
                            class="block rounded-lg px-3 py-3 text-lg font-semibold transition {{ $isActive ? 'bg-red-500/10 text-red-400' : 'text-white hover:bg-white/5 hover:text-red-500' }}">
@@ -227,7 +241,6 @@
                     @endforeach
                 </nav>
 
-                {{-- Bottom actions --}}
                 <div class="mt-auto pt-8 space-y-3">
                     @auth
                         <a href="{{ route($dashboardRoute) }}"
