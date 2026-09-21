@@ -138,7 +138,7 @@ new #[Layout('layouts.guest.app')] class extends Component {
 };
 ?>
 
-<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12" wire:poll.10s>
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16" wire:poll.10s>
 
     <!-- Header -->
     <div class="mb-10 flex justify-between items-end border-b border-gray-700 pb-5">

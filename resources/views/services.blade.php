@@ -3,7 +3,7 @@
 @section('content')
 <div class="bg-slate-950 text-white selection:bg-red-600/30 min-h-screen">
 
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 lg:py-24">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-16">
 
         {{-- Header --}}
         <div class="border-b border-white/10 pb-8 mb-12">
