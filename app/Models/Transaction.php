@@ -1,18 +1,35 @@
 <?php
+
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Transaction extends Model
 {
+    use HasFactory;
+
     protected $fillable = [
-        'user_id', 'type', 'phone_number', 'amount', 'merchant_request_id',
-        'checkout_request_id', 'receipt_number', 'status', 'result_desc',
-        'nomination_id', 'tokens_bought'
+        'type',
+        'user_id',
+        'phone_number',
+        'amount',
+        'tokens_bought',
+        'nomination_id',
+        'merchant_request_id',
+        'checkout_request_id',
+        'receipt_number',
+        'result_desc',
+        'status',
     ];
 
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function nomination()
+    {
+        return $this->belongsTo(Nomination::class);
     }
 }
