@@ -39,6 +39,10 @@
                             {{ __('Wallets') }}
                         </flux:sidebar.item>
 
+                        <flux:sidebar.item icon="arrow-up-tray" :href="route('admin.payouts')" :current="request()->routeIs('admin.payouts')" wire:navigate>
+                            {{ __('payouts') }}
+                        </flux:sidebar.item>
+
                     @elseif(auth()->user()->isStaff())
                         <flux:sidebar.item icon="home" :href="route('staff.dashboard')" :current="request()->routeIs('staff.dashboard')" wire:navigate>
                             {{ __('Dashboard') }}

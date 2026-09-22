@@ -9,6 +9,7 @@ Route::get('/auth/google/callback', [GoogleAuthController::class, 'callback']);
 
 Route::view('/', 'home')->name('home');
 Route::view('contact', 'contact')->name('contact');
+Route::livewire('/portal', 'pages::nominee-portal')->name('nominee.portal');
 Route::view('about', 'about')->name('about');
 Route::view('faqs', 'faqs')->name('faqs');
 Route::view('terms-of-service', 'terms')->name('terms');
@@ -41,6 +42,8 @@ Route::middleware(['auth'])->group(function () {
         Route::livewire('/token-packages', 'admin::token-packages')->name('token-packages');
 
         Route::livewire('/wallets', 'admin::wallets')->name('wallets');
+
+        Route::livewire('/payouts', 'admin::payouts')->name('payouts');
 
     });
 

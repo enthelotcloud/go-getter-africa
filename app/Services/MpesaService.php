@@ -51,7 +51,7 @@ class MpesaService
             'PhoneNumber' => $phone,
             'CallBackURL' => url('/api/mpesa/stk-callback'),
             'AccountReference' => $reference,
-            'TransactionDesc' => 'Coffee Support - Daily Vibes'
+            'TransactionDesc' => 'Vote for user - GGA'
         ]);
 
         return $response->json();

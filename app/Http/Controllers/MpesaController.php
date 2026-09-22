@@ -18,7 +18,7 @@ class MpesaController extends Controller
     protected MpesaService $mpesa;
 
     // The percentage of a guest vote payment that goes to the nominee's wallet
-    protected $commissionRate = 0.60; // 60%
+    protected $commissionRate = 0.30; // 30%
 
     public function __construct(MpesaService $mpesa)
     {

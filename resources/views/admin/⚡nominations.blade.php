@@ -25,6 +25,9 @@ new class extends Component {
 
     public string $code = '';
 
+    #[Validate('nullable|string|min:4|max:10')]
+    public string $access_pin = '';
+
     #[Validate('nullable|string|max:255')]
     public string $company_or_show = '';
 
@@ -76,7 +79,7 @@ new class extends Component {
     {
         $this->resetValidation();
         $this->reset([
-            'nominationId', 'nomination_category_id', 'name', 'code', 'company_or_show',
+            'nominationId', 'nomination_category_id', 'name', 'code', 'access_pin', 'company_or_show',
             'profile_image', 'existingProfileImage', 'bio', 'facebook_url', 'instagram_url',
             'twitter_url', 'tiktok_url', 'youtube_url', 'website_url', 'isEditMode',
         ]);
@@ -94,6 +97,7 @@ new class extends Component {
         $this->nomination_category_id = $nomination->nomination_category_id;
         $this->name                   = $nomination->name;
         $this->code                   = $nomination->code;
+        $this->access_pin             = $nomination->access_pin ?? '';
         $this->company_or_show        = $nomination->company_or_show ?? '';
         $this->existingProfileImage   = $nomination->profile_image;
         $this->bio                    = $nomination->bio ?? '';
@@ -145,6 +149,7 @@ new class extends Component {
                 'nomination_category_id' => $this->nomination_category_id,
                 'name'                   => $this->name,
                 'code'                   => $this->code,
+                'access_pin'             => $this->access_pin ?: null,
                 'company_or_show'        => $this->company_or_show ?: null,
                 'profile_image'          => $imagePath,
                 'bio'                    => $this->bio ?: null,
@@ -187,7 +192,7 @@ new class extends Component {
     <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
         <div>
             <h2 class="text-3xl font-bold text-white tracking-tight">Nominees Directory</h2>
-            <p class="text-sm text-gray-400 mt-1">Manage the candidates, voting codes, and social profiles.</p>
+            <p class="text-sm text-gray-400 mt-1">Manage the candidates, voting codes, access PINs, and social profiles.</p>
         </div>
         <button wire:click="create"
                 class="px-5 py-2.5 bg-yellow-500 text-gray-900 font-semibold rounded-lg hover:bg-yellow-400 transition-colors shadow-lg shadow-yellow-500/20 flex items-center gap-2 self-start sm:self-auto">
@@ -225,7 +230,7 @@ new class extends Component {
                         <tr>
                             <th class="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Nominee</th>
                             <th class="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Category</th>
-                            <th class="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Code</th>
+                            <th class="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Credentials</th>
                             <th class="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Votes</th>
                             <th class="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Status</th>
                             <th class="px-6 py-4 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider">Actions</th>
@@ -257,9 +262,18 @@ new class extends Component {
                                     {{ $nominee->category->name ?? 'Uncategorized' }}
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
-                                    <span class="px-2 py-1 bg-gray-900 border border-gray-600 rounded text-xs text-yellow-500 font-mono">
-                                        {{ $nominee->code }}
-                                    </span>
+                                    <div class="flex flex-col gap-1">
+                                        <span class="px-2 py-1 bg-gray-900 border border-gray-600 rounded text-xs text-yellow-500 font-mono w-max">
+                                            {{ $nominee->code }}
+                                        </span>
+                                        @if($nominee->access_pin)
+                                            <span class="text-[10px] text-gray-400 font-mono flex items-center gap-1">
+                                                PIN: <span class="text-white bg-gray-700 px-1 rounded">{{ $nominee->access_pin }}</span>
+                                            </span>
+                                        @else
+                                            <span class="text-[10px] text-red-400 font-bold">No PIN set</span>
+                                        @endif
+                                    </div>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-300 font-bold">
                                     {{ number_format((int) $nominee->total_votes) }}
@@ -363,6 +377,14 @@ new class extends Component {
                                 <input type="text" wire:model="company_or_show" placeholder="e.g. Citizen TV"
                                        class="mt-1 block w-full bg-gray-900 border border-gray-600 rounded-lg text-white focus:ring-yellow-500 focus:border-yellow-500 sm:text-sm px-4 py-2.5">
                                 @error('company_or_show') <span class="text-xs text-red-400 mt-1 block">{{ $message }}</span> @enderror
+                            </div>
+
+                            <div class="md:col-span-2">
+                                <label class="block text-sm font-medium text-gray-300">Portal Access PIN (Optional)</label>
+                                <input type="text" wire:model="access_pin" placeholder="e.g. 1234"
+                                       class="mt-1 block w-full bg-gray-900 border border-gray-600 rounded-lg text-white focus:ring-yellow-500 focus:border-yellow-500 sm:text-sm px-4 py-2.5 font-mono tracking-widest">
+                                <p class="text-xs text-gray-500 mt-1">Set a 4 to 10 character PIN. The nominee will use their Voting Code and this PIN to log into the public portal.</p>
+                                @error('access_pin') <span class="text-xs text-red-400 mt-1 block">{{ $message }}</span> @enderror
                             </div>
                         </div>
 
