@@ -11,15 +11,14 @@ use Livewire\Attributes\Computed;
 use Livewire\Attributes\Validate;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 
 new #[Layout('layouts.guest.app')] class extends Component {
     use WithPagination, WithFileUploads;
 
     // ─── Withdrawal rules ─────────────────────────────
-    private const WITHDRAW_MAX      = 5000;    // KES per single withdrawal
-    private const WITHDRAW_MIN      = 10;      // KES minimum
-    private const WITHDRAW_COOLDOWN = 30;      // minutes between withdrawals
+    private const WITHDRAW_MAX      = 5000;
+    private const WITHDRAW_MIN      = 10;
+    private const WITHDRAW_COOLDOWN = 30;
 
     // ─── Login state ──────────────────────────────────
     public bool $isAuthenticated = false;
@@ -31,11 +30,10 @@ new #[Layout('layouts.guest.app')] class extends Component {
     public string $pin = '';
 
     public string $loginError = '';
-
     public ?int $nominationId = null;
 
     // ─── Tab state ────────────────────────────────────
-    public string $activeTab = 'overview'; // overview | profile | withdraw
+    public string $activeTab = 'overview';
 
     // ─── Profile edit form ────────────────────────────
     public string $prof_name = '';
@@ -112,7 +110,6 @@ new #[Layout('layouts.guest.app')] class extends Component {
         $this->resetValidation();
 
         if ($tab === 'withdraw' && $this->nominee) {
-            // Pre-fill from last used phone on first open
             if (! $this->withdraw_phone && $this->nominee->last_payout_phone) {
                 $this->withdraw_phone = $this->nominee->last_payout_phone;
             }
@@ -167,22 +164,22 @@ new #[Layout('layouts.guest.app')] class extends Component {
         }
 
         $nominee->update([
-            'name'             => $this->prof_name,
-            'company_or_show'  => $this->prof_company ?: null,
-            'bio'              => $this->prof_bio ?: null,
-            'facebook_url'     => $this->prof_facebook ?: null,
-            'instagram_url'    => $this->prof_instagram ?: null,
-            'twitter_url'      => $this->prof_twitter ?: null,
-            'tiktok_url'       => $this->prof_tiktok ?: null,
-            'youtube_url'      => $this->prof_youtube ?: null,
-            'website_url'      => $this->prof_website ?: null,
-            'profile_image'    => $imagePath,
+            'name'            => $this->prof_name,
+            'company_or_show' => $this->prof_company ?: null,
+            'bio'             => $this->prof_bio ?: null,
+            'facebook_url'    => $this->prof_facebook ?: null,
+            'instagram_url'   => $this->prof_instagram ?: null,
+            'twitter_url'     => $this->prof_twitter ?: null,
+            'tiktok_url'      => $this->prof_tiktok ?: null,
+            'youtube_url'     => $this->prof_youtube ?: null,
+            'website_url'     => $this->prof_website ?: null,
+            'profile_image'   => $imagePath,
         ]);
 
         $this->existing_image = $imagePath;
         $this->prof_image = null;
 
-        $this->dispatch('$refresh');
+        unset($this->nominee);
         session()->flash('profile_saved', 'Profile updated successfully.');
     }
 
@@ -207,7 +204,7 @@ new #[Layout('layouts.guest.app')] class extends Component {
         $this->withdrawDone = false;
         $this->resetValidation();
 
-        // ── Fresh pull: never trust component state for money ──
+        // Fresh pull — never trust cached component state for money
         $nominee = Nomination::find($this->nominationId);
         if (! $nominee) {
             $this->addError('withdraw_amount', 'Account not found.');
@@ -216,7 +213,7 @@ new #[Layout('layouts.guest.app')] class extends Component {
 
         $this->validate($this->withdrawRules());
 
-        // ── Cooldown check (server-side, cannot be bypassed) ──
+        // Server-side cooldown
         $last = Transaction::where('nomination_id', $nominee->id)
             ->where('type', 'b2c_withdrawal')
             ->whereIn('status', ['pending', 'completed'])
@@ -231,7 +228,6 @@ new #[Layout('layouts.guest.app')] class extends Component {
             return;
         }
 
-        // ── Balance check against fresh DB value ──
         if ($this->withdraw_amount > $nominee->kes_balance) {
             $this->addError('withdraw_amount', 'Insufficient balance.');
             return;
@@ -252,7 +248,6 @@ new #[Layout('layouts.guest.app')] class extends Component {
             DB::transaction(function () use ($nominee, $response) {
                 $locked = Nomination::lockForUpdate()->find($nominee->id);
 
-                // Re-verify inside the lock — no race possible now
                 if ($locked->kes_balance < $this->withdraw_amount) {
                     throw new \RuntimeException('Balance changed, please try again.');
                 }
@@ -274,7 +269,8 @@ new #[Layout('layouts.guest.app')] class extends Component {
             $this->withdrawDone = true;
             $this->withdrawReceipt = $response['ConversationID'];
             $this->withdraw_amount = min(500, (float) $nominee->fresh()->kes_balance);
-            unset($this->nominee, $this->lastWithdrawal, $this->canWithdraw, $this->nextWithdrawalAt);
+
+            unset($this->nominee, $this->lastWithdrawal, $this->canWithdraw, $this->nextWithdrawalAt, $this->withdrawalHistory);
 
         } catch (\RuntimeException $e) {
             $this->addError('withdraw_amount', $e->getMessage());
@@ -330,8 +326,9 @@ new #[Layout('layouts.guest.app')] class extends Component {
             ->first();
     }
 
+    // FIXED: CarbonInterface works with both Carbon and CarbonImmutable
     #[Computed]
-    public function nextWithdrawalAt(): ?\Carbon\Carbon
+    public function nextWithdrawalAt(): ?\Carbon\CarbonInterface
     {
         $last = $this->lastWithdrawal;
         return $last ? $last->created_at->addMinutes(self::WITHDRAW_COOLDOWN) : null;
@@ -348,7 +345,6 @@ new #[Layout('layouts.guest.app')] class extends Component {
     // HELPERS
     // ─────────────────────────────────────────────────
 
-    /** Kenyan-law compliant phone mask: 0712***678 */
     public function maskPhone(?string $phone): string
     {
         if (! $phone) return '—';
@@ -370,10 +366,6 @@ new #[Layout('layouts.guest.app')] class extends Component {
 };
 ?>
 
-@php
-    $maskPhone = fn (?string $p) => $this->maskPhone($p);
-@endphp
-
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
     {{-- ═══════════════ LOGIN ═══════════════ --}}
@@ -381,10 +373,7 @@ new #[Layout('layouts.guest.app')] class extends Component {
         <div class="max-w-md mx-auto mt-10">
             <div class="text-center mb-8">
                 <div class="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-500/20 shadow-[0_0_30px_rgba(239,68,68,0.1)]">
-                    <svg class="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                              d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
-                    </svg>
+                    <flux:icon.lock-closed class="w-8 h-8 text-red-500" />
                 </div>
                 <h1 class="text-3xl font-bold text-white">Nominee Portal</h1>
                 <p class="text-gray-400 mt-2">Enter your Voting Code and PIN to manage your campaign.</p>
@@ -442,41 +431,50 @@ new #[Layout('layouts.guest.app')] class extends Component {
                 </div>
             </div>
             <button wire:click="logout"
-                    class="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg text-sm font-bold border border-gray-600 transition-colors self-start sm:self-auto">
+                    class="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg text-sm font-bold border border-gray-600 transition-colors self-start sm:self-auto inline-flex items-center gap-2">
+                <flux:icon.arrow-right-start-on-rectangle class="w-4 h-4" />
                 Log Out
             </button>
         </div>
 
-        {{-- Flash messages --}}
+        {{-- Flash --}}
         @if (session()->has('profile_saved'))
             <div x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 3500)"
                  class="p-4 mb-6 text-sm text-green-900 bg-green-400 rounded-lg flex items-center justify-between border border-green-500">
-                <span>{{ session('profile_saved') }}</span>
-                <button @click="show = false" class="text-green-900 hover:text-green-800">×</button>
+                <div class="flex items-center gap-2">
+                    <flux:icon.check-circle class="w-5 h-5" />
+                    {{ session('profile_saved') }}
+                </div>
+                <button @click="show = false" class="text-green-900 hover:text-green-800">
+                    <flux:icon.x-mark class="w-4 h-4" />
+                </button>
             </div>
         @endif
 
-        {{-- ═══ TABS ═══ --}}
+        {{-- Tabs --}}
         <div class="mb-6 border-b border-gray-700">
             <nav class="flex gap-1 -mb-px overflow-x-auto" aria-label="Tabs">
                 @php
                     $tabs = [
-                        'overview' => ['Overview', 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3'],
-                        'profile'  => ['Edit Profile', 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z'],
-                        'withdraw' => ['Withdraw', 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8V7m0 9v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z'],
+                        'overview' => ['Overview',     'chart-bar'],
+                        'profile'  => ['Edit Profile', 'user-circle'],
+                        'withdraw' => ['Withdraw',     'banknotes'],
                     ];
                 @endphp
 
                 @foreach ($tabs as $key => [$label, $icon])
                     <button wire:click="setTab('{{ $key }}')" type="button"
-                            class="group inline-flex items-center gap-2 px-4 py-3 text-sm font-bold whitespace-nowrap border-b-2 transition-colors
-                                {{ $activeTab === $key
-                                    ? 'border-red-500 text-white'
-                                    : 'border-transparent text-gray-400 hover:text-gray-200 hover:border-gray-600' }}">
-                        <svg class="w-4 h-4 {{ $activeTab === $key ? 'text-red-500' : 'text-gray-500 group-hover:text-gray-400' }}"
-                             fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="{{ $icon }}"/>
-                        </svg>
+                            @class([
+                                'group inline-flex items-center gap-2 px-4 py-3 text-sm font-bold whitespace-nowrap border-b-2 transition-colors',
+                                'border-red-500 text-white' => $activeTab === $key,
+                                'border-transparent text-gray-400 hover:text-gray-200 hover:border-gray-600' => $activeTab !== $key,
+                            ])>
+                        <flux:icon :name="$icon"
+                                   @class([
+                                       'w-4 h-4 transition-colors',
+                                       'text-red-500' => $activeTab === $key,
+                                       'text-gray-500 group-hover:text-gray-400' => $activeTab !== $key,
+                                   ]) />
                         {{ $label }}
                     </button>
                 @endforeach
@@ -488,9 +486,7 @@ new #[Layout('layouts.guest.app')] class extends Component {
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                 <div class="bg-gray-800 rounded-2xl p-6 border border-gray-700 shadow-xl flex items-center gap-5">
                     <div class="w-14 h-14 rounded-full bg-yellow-500/10 flex items-center justify-center border border-yellow-500/20 shrink-0">
-                        <svg class="w-7 h-7 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M10 2a8 8 0 100 16 8 8 0 000-16zM8 7a1 1 0 112 0v4h2a1 1 0 110 2H9a1 1 0 01-1-1V7z"/>
-                        </svg>
+                        <flux:icon.trophy class="w-7 h-7 text-yellow-500" />
                     </div>
                     <div>
                         <div class="text-sm text-gray-400 uppercase tracking-wider font-bold mb-1">Total Votes</div>
@@ -500,7 +496,7 @@ new #[Layout('layouts.guest.app')] class extends Component {
 
                 <div class="bg-gray-800 rounded-2xl p-6 border border-gray-700 shadow-xl flex items-center gap-5">
                     <div class="w-14 h-14 rounded-full bg-green-500/10 flex items-center justify-center border border-green-500/20 shrink-0">
-                        <span class="text-xl font-bold text-green-500">KES</span>
+                        <flux:icon.wallet class="w-7 h-7 text-green-500" />
                     </div>
                     <div>
                         <div class="text-sm text-gray-400 uppercase tracking-wider font-bold mb-1">Commission Balance</div>
@@ -512,9 +508,9 @@ new #[Layout('layouts.guest.app')] class extends Component {
             </div>
 
             <div class="bg-gray-800 rounded-2xl border border-gray-700 shadow-xl overflow-hidden">
-                <div class="px-6 py-5 border-b border-gray-700 bg-gray-900/50 flex items-center justify-between">
+                <div class="px-6 py-5 border-b border-gray-700 bg-gray-900/50 flex items-center justify-between gap-3">
                     <h3 class="text-lg font-bold text-white">Financial Activity</h3>
-                    <span class="text-xs text-gray-500">Voter numbers masked per Kenyan data protection rules</span>
+                    <span class="hidden sm:inline text-xs text-gray-500">Voter numbers masked per Kenyan data protection rules</span>
                 </div>
 
                 @if ($this->transactions->count() > 0)
@@ -530,19 +526,24 @@ new #[Layout('layouts.guest.app')] class extends Component {
                             </thead>
                             <tbody class="divide-y divide-gray-700">
                                 @foreach ($this->transactions as $txn)
-                                    <tr class="hover:bg-gray-700/30 transition-colors">
+                                    <tr wire:key="txn-{{ $txn->id }}" class="hover:bg-gray-700/30 transition-colors">
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400">
                                             {{ $txn->created_at->format('M d, Y h:i A') }}
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap">
                                             @if ($txn->type === 'stk_push')
-                                                <span class="px-2 py-1 bg-green-500/10 text-green-400 text-xs font-bold rounded border border-green-500/20">Vote Received</span>
+                                                <span class="inline-flex items-center gap-1 px-2 py-1 bg-green-500/10 text-green-400 text-xs font-bold rounded border border-green-500/20">
+                                                    <flux:icon.arrow-trending-up class="w-3 h-3" />
+                                                    Vote Received
+                                                </span>
                                             @else
-                                                <span class="px-2 py-1 bg-blue-500/10 text-blue-400 text-xs font-bold rounded border border-blue-500/20">{{ $txn->type }}</span>
+                                                <span class="px-2 py-1 bg-blue-500/10 text-blue-400 text-xs font-bold rounded border border-blue-500/20">
+                                                    {{ $txn->type }}
+                                                </span>
                                             @endif
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-300 font-mono">
-                                            {{ $maskPhone($txn->phone_number) }}
+                                            {{ $this->maskPhone($txn->phone_number) }}
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-right font-mono font-bold {{ $txn->type === 'stk_push' ? 'text-green-400' : 'text-red-400' }}">
                                             {{ $txn->type === 'stk_push' ? '+' : '−' }} {{ number_format($txn->amount, 2) }}
@@ -558,8 +559,9 @@ new #[Layout('layouts.guest.app')] class extends Component {
                         </div>
                     @endif
                 @else
-                    <div class="p-12 text-center text-gray-400 text-sm">
-                        No financial activity recorded yet.
+                    <div class="py-16 px-4 text-center">
+                        <flux:icon.document-text class="w-12 h-12 text-gray-600 mx-auto mb-3" />
+                        <p class="text-sm text-gray-400">No financial activity recorded yet.</p>
                     </div>
                 @endif
             </div>
@@ -578,16 +580,14 @@ new #[Layout('layouts.guest.app')] class extends Component {
                     {{-- Photo --}}
                     <div>
                         <label class="block text-sm font-medium text-gray-300 mb-3">Profile Photo</label>
-                        <div class="flex items-center gap-5">
+                        <div class="flex flex-col sm:flex-row items-center gap-5">
                             @if ($prof_image)
                                 <div class="relative group shrink-0">
                                     <img src="{{ $prof_image->temporaryUrl() }}"
                                          class="w-24 h-24 rounded-full object-cover border-2 border-yellow-500">
                                     <button type="button" wire:click="removeProfileImage"
                                             class="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-1.5 shadow-lg hover:bg-red-600">
-                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/>
-                                        </svg>
+                                        <flux:icon.x-mark class="w-3 h-3" />
                                     </button>
                                 </div>
                             @elseif ($existing_image)
@@ -596,9 +596,7 @@ new #[Layout('layouts.guest.app')] class extends Component {
                                          class="w-24 h-24 rounded-full object-cover border border-gray-600">
                                     <button type="button" wire:click="removeExistingImage"
                                             class="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-1.5 shadow-lg hover:bg-red-600 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/>
-                                        </svg>
+                                        <flux:icon.x-mark class="w-3 h-3" />
                                     </button>
                                 </div>
                             @else
@@ -607,13 +605,10 @@ new #[Layout('layouts.guest.app')] class extends Component {
                                 </div>
                             @endif
 
-                            <div class="flex-1">
+                            <div class="flex-1 w-full">
                                 <label for="profile-image-input"
                                        class="flex flex-col items-center justify-center w-full h-24 border-2 border-gray-600 border-dashed rounded-xl cursor-pointer bg-gray-900 hover:bg-gray-700/50 hover:border-yellow-500 transition-all">
-                                    <svg class="w-6 h-6 text-gray-400 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"
-                                              d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                                    </svg>
+                                    <flux:icon.photo class="w-6 h-6 text-gray-400 mb-1" />
                                     <p class="text-sm text-gray-400">
                                         <span class="font-semibold text-yellow-500">Upload image</span> — max 2MB
                                     </p>
@@ -645,13 +640,12 @@ new #[Layout('layouts.guest.app')] class extends Component {
                     {{-- Bio --}}
                     <div class="border-t border-gray-700 pt-6">
                         <label class="block text-sm font-medium text-gray-300 mb-1">Bio</label>
-                        <textarea wire:model="prof_bio" rows="4" maxlength="1000"
+                        <textarea wire:model.live="prof_bio" rows="4" maxlength="1000"
                                   placeholder="Tell voters who you are and why they should support you…"
                                   class="block w-full bg-gray-900 border border-gray-600 rounded-lg text-white focus:ring-yellow-500 focus:border-yellow-500 sm:text-sm px-4 py-2.5"></textarea>
                         <div class="flex justify-between mt-1">
                             @error('prof_bio') <span class="text-xs text-red-400">{{ $message }}</span> @enderror
-                            <span class="text-xs text-gray-500 ml-auto" x-data="{len: {{ strlen($prof_bio) }}}"
-                                  x-init="$watch('$wire.prof_bio', v => len = v.length)" x-text="len + ' / 1000'"></span>
+                            <span class="text-xs text-gray-500 ml-auto">{{ strlen($prof_bio) }} / 1000</span>
                         </div>
                     </div>
 
@@ -680,6 +674,7 @@ new #[Layout('layouts.guest.app')] class extends Component {
                 <div class="px-6 py-4 bg-gray-900/50 border-t border-gray-700 flex flex-col-reverse sm:flex-row sm:justify-end gap-3">
                     <button type="submit" wire:loading.attr="disabled"
                             class="w-full sm:w-auto inline-flex justify-center items-center gap-2 rounded-lg bg-yellow-500 hover:bg-yellow-400 px-6 py-2.5 text-sm font-bold text-gray-900 disabled:opacity-60">
+                        <flux:icon.check class="w-4 h-4" wire:loading.remove wire:target="saveProfile" />
                         <span wire:loading.remove wire:target="saveProfile">Save Changes</span>
                         <span wire:loading wire:target="saveProfile">Saving…</span>
                     </button>
@@ -698,23 +693,20 @@ new #[Layout('layouts.guest.app')] class extends Component {
 
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-                {{-- Withdraw card --}}
+                {{-- Main column --}}
                 <div class="lg:col-span-2 space-y-6">
 
                     {{-- Balance + rules --}}
                     <div class="bg-gradient-to-br from-green-900/40 to-gray-800 rounded-2xl border border-green-500/20 p-6 shadow-xl">
-                        <div class="flex items-start justify-between mb-4">
-                            <div>
+                        <div class="flex items-start justify-between mb-4 gap-4">
+                            <div class="min-w-0">
                                 <div class="text-xs uppercase tracking-widest text-green-400 font-bold mb-1">Available to withdraw</div>
                                 <div class="text-4xl font-mono font-bold text-white">
                                     KES {{ number_format($balance, 2) }}
                                 </div>
                             </div>
                             <div class="w-12 h-12 rounded-full bg-green-500/20 border border-green-500/30 flex items-center justify-center shrink-0">
-                                <svg class="w-6 h-6 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                          d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8V7m0 9v1"/>
-                                </svg>
+                                <flux:icon.arrow-down-tray class="w-6 h-6 text-green-400" />
                             </div>
                         </div>
 
@@ -731,9 +723,7 @@ new #[Layout('layouts.guest.app')] class extends Component {
 
                         @if ($balance > $this->withdrawalCap())
                             <div class="mt-4 text-xs text-gray-300 bg-black/20 rounded-lg p-3 flex gap-2">
-                                <svg class="w-4 h-4 shrink-0 mt-0.5 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                                </svg>
+                                <flux:icon.information-circle class="w-4 h-4 shrink-0 mt-0.5 text-yellow-500" />
                                 <span>
                                     Your balance exceeds the KES {{ number_format($this->withdrawalCap()) }} per-withdrawal cap.
                                     You can withdraw {{ floor($balance / $this->withdrawalCap()) }} × KES {{ number_format($this->withdrawalCap()) }}
@@ -745,13 +735,11 @@ new #[Layout('layouts.guest.app')] class extends Component {
                         @endif
                     </div>
 
-                    {{-- Form --}}
+                    {{-- Form or success --}}
                     @if ($withdrawDone)
                         <div class="bg-gray-800 rounded-2xl border border-green-500/30 p-6 text-center">
                             <div class="w-16 h-16 mx-auto rounded-full bg-green-500/15 border border-green-500/40 flex items-center justify-center mb-4">
-                                <svg class="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
-                                </svg>
+                                <flux:icon.check-circle class="w-8 h-8 text-green-500" />
                             </div>
                             <h3 class="text-xl font-bold text-white mb-2">Withdrawal Submitted</h3>
                             <p class="text-sm text-gray-400 mb-4">
@@ -780,17 +768,15 @@ new #[Layout('layouts.guest.app')] class extends Component {
                                          target: {{ $nextAt->timestamp * 1000 }},
                                          remaining: '',
                                          tick() {
-                                             const now = Date.now();
-                                             const diff = Math.max(0, this.target - now);
+                                             const diff = Math.max(0, this.target - Date.now());
                                              const m = Math.floor(diff / 60000);
                                              const s = Math.floor((diff % 60000) / 1000);
                                              this.remaining = m + 'm ' + String(s).padStart(2, '0') + 's';
+                                             if (diff <= 0) location.reload();
                                          },
                                          init() { this.tick(); setInterval(() => this.tick(), 1000); }
                                      }">
-                                    <svg class="w-5 h-5 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                                    </svg>
+                                    <flux:icon.clock class="w-5 h-5 shrink-0 mt-0.5" />
                                     <div>
                                         <div class="font-bold">Cooldown active</div>
                                         <div class="text-xs opacity-80 mt-0.5">
@@ -801,8 +787,9 @@ new #[Layout('layouts.guest.app')] class extends Component {
                             @endif
 
                             @error('withdraw_amount')
-                                <div class="rounded-xl bg-red-500/10 border border-red-500/20 p-4 text-sm text-red-400">
-                                    {{ $message }}
+                                <div class="rounded-xl bg-red-500/10 border border-red-500/20 p-4 text-sm text-red-400 flex items-start gap-2">
+                                    <flux:icon.exclamation-triangle class="w-5 h-5 shrink-0 mt-0.5" />
+                                    <span>{{ $message }}</span>
                                 </div>
                             @enderror
 
@@ -826,7 +813,7 @@ new #[Layout('layouts.guest.app')] class extends Component {
                                         <span class="text-gray-500 font-bold sm:text-sm">KES</span>
                                     </div>
                                     <input type="number" wire:model.live="withdraw_amount"
-                                           min="{{ 10 }}" max="{{ min($this->withdrawalCap(), $balance) }}" step="1"
+                                           min="10" max="{{ min($this->withdrawalCap(), $balance) }}" step="1"
                                            class="block w-full pl-14 pr-3 py-3 bg-gray-900 border border-gray-600 rounded-xl text-white font-mono text-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
                                            {{ ! $canWithdraw ? 'disabled' : '' }}>
                                 </div>
@@ -847,8 +834,9 @@ new #[Layout('layouts.guest.app')] class extends Component {
                             <button type="submit"
                                     wire:loading.attr="disabled"
                                     {{ (! $canWithdraw || $balance < 10) ? 'disabled' : '' }}
-                                    class="w-full flex items-center justify-center px-6 py-4 rounded-xl shadow-lg text-base font-bold text-white bg-green-600 hover:bg-green-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all">
-                                <span wire:loading.remove wire:target="requestWithdrawal">
+                                    class="w-full flex items-center justify-center gap-2 px-6 py-4 rounded-xl shadow-lg text-base font-bold text-white bg-green-600 hover:bg-green-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all">
+                                <span wire:loading.remove wire:target="requestWithdrawal" class="inline-flex items-center gap-2">
+                                    <flux:icon.arrow-down-tray class="w-5 h-5" />
                                     @if ($balance < 10)
                                         Balance too low
                                     @elseif (! $canWithdraw)
@@ -871,34 +859,47 @@ new #[Layout('layouts.guest.app')] class extends Component {
 
                 {{-- Recent withdrawals --}}
                 <div class="lg:col-span-1">
-                    <div class="bg-gray-800 rounded-2xl border border-gray-700 shadow-xl overflow-hidden sticky top-24">
-                        <div class="px-5 py-4 border-b border-gray-700 bg-gray-900/50">
+                    <div class="bg-gray-800 rounded-2xl border border-gray-700 shadow-xl overflow-hidden lg:sticky lg:top-24">
+                        <div class="px-5 py-4 border-b border-gray-700 bg-gray-900/50 flex items-center justify-between">
                             <h3 class="text-base font-bold text-white">Recent Withdrawals</h3>
+                            <flux:icon.clock class="w-4 h-4 text-gray-500" />
                         </div>
 
                         @if ($this->withdrawalHistory->count() > 0)
                             <ul class="divide-y divide-gray-700 max-h-[500px] overflow-y-auto">
                                 @foreach ($this->withdrawalHistory as $w)
-                                    <li class="p-4 hover:bg-gray-700/30 transition-colors">
+                                    <li wire:key="wd-{{ $w->id }}" class="p-4 hover:bg-gray-700/30 transition-colors">
                                         <div class="flex justify-between items-start mb-1">
                                             <div class="text-sm font-mono font-bold text-white">
                                                 KES {{ number_format($w->amount, 2) }}
                                             </div>
-                                            <span class="text-[10px] uppercase font-bold
-                                                {{ $w->status === 'completed' ? 'text-green-500' : ($w->status === 'failed' ? 'text-red-500' : 'text-yellow-500') }}">
+                                            <span @class([
+                                                'inline-flex items-center gap-1 text-[10px] uppercase font-bold',
+                                                'text-green-500' => $w->status === 'completed',
+                                                'text-red-500'   => $w->status === 'failed',
+                                                'text-yellow-500'=> $w->status === 'pending',
+                                            ])>
+                                                @if ($w->status === 'completed')
+                                                    <flux:icon.check-circle class="w-3 h-3" />
+                                                @elseif ($w->status === 'failed')
+                                                    <flux:icon.x-circle class="w-3 h-3" />
+                                                @else
+                                                    <flux:icon.clock class="w-3 h-3" />
+                                                @endif
                                                 {{ $w->status }}
                                             </span>
                                         </div>
                                         <div class="flex justify-between text-xs text-gray-500">
-                                            <span class="font-mono">{{ $maskPhone($w->phone_number) }}</span>
+                                            <span class="font-mono">{{ $this->maskPhone($w->phone_number) }}</span>
                                             <span>{{ $w->created_at->diffForHumans() }}</span>
                                         </div>
                                     </li>
                                 @endforeach
                             </ul>
                         @else
-                            <div class="py-10 px-4 text-center text-sm text-gray-500">
-                                No withdrawals yet.
+                            <div class="py-12 px-4 text-center">
+                                <flux:icon.clock class="w-10 h-10 text-gray-600 mx-auto mb-3" />
+                                <p class="text-sm text-gray-500">No withdrawals yet.</p>
                             </div>
                         @endif
                     </div>
