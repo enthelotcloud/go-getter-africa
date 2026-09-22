@@ -343,7 +343,7 @@ new #[Layout('layouts.guest.portal')] class extends Component {
 @php
     $shareUrl  = $isAuthenticated ? $this->voteUrl : '';
     $shareText = $isAuthenticated
-        ? 'Vote for ' . ($this->nominee?->name ?? '') . ' on Go Getter Africa!'
+        ? 'Vote for me' . ($this->nominee?->name ?? '') . ' on Go Getter Africa!'
         : '';
 
     $tabs = [
