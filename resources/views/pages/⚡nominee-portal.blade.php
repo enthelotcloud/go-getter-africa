@@ -907,4 +907,8 @@ new #[Layout('layouts.guest.app')] class extends Component {
             </div>
         @endif
     @endif
+
+    @if ($isAuthenticated)
+        <x-install-pwa />
+    @endif
 </div>

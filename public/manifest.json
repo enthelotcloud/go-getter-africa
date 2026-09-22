@@ -1,0 +1,48 @@
+{
+    "name": "Go Getter Africa — Nominee Portal",
+    "short_name": "GG Africa",
+    "description": "Manage your campaign, track votes, and withdraw earnings.",
+    "start_url": "/portal",
+    "scope": "/",
+    "display": "standalone",
+    "orientation": "portrait-primary",
+    "background_color": "#0f172a",
+    "theme_color": "#dc2626",
+    "categories": ["business", "entertainment", "social"],
+    "lang": "en-KE",
+    "dir": "ltr",
+    "icons": [
+        {
+            "src": "/icons/icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "/icons/icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "/icons/maskable-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "maskable"
+        }
+    ],
+    "shortcuts": [
+        {
+            "name": "Withdraw earnings",
+            "short_name": "Withdraw",
+            "url": "/portal?tab=withdraw",
+            "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+        },
+        {
+            "name": "Edit profile",
+            "short_name": "Profile",
+            "url": "/portal?tab=profile",
+            "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+        }
+    ]
+}
