@@ -12,15 +12,13 @@ use Livewire\Attributes\Validate;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
-new #[Layout('layouts.guest.app')] class extends Component {
+new #[Layout('layouts.guest.portal')] class extends Component {
     use WithPagination, WithFileUploads;
 
-    // ─── Withdrawal rules ─────────────────────────────
     private const WITHDRAW_MAX      = 5000;
     private const WITHDRAW_MIN      = 10;
     private const WITHDRAW_COOLDOWN = 30;
 
-    // ─── Login state ──────────────────────────────────
     public bool $isAuthenticated = false;
 
     #[Validate('required|string')]
@@ -32,10 +30,8 @@ new #[Layout('layouts.guest.app')] class extends Component {
     public string $loginError = '';
     public ?int $nominationId = null;
 
-    // ─── Tab state ────────────────────────────────────
     public string $activeTab = 'overview';
 
-    // ─── Profile edit form ────────────────────────────
     public string $prof_name = '';
     public string $prof_company = '';
     public string $prof_bio = '';
@@ -48,15 +44,10 @@ new #[Layout('layouts.guest.app')] class extends Component {
     public $prof_image = null;
     public ?string $existing_image = null;
 
-    // ─── Withdraw form ────────────────────────────────
     public string $withdraw_phone = '';
     public float $withdraw_amount = 500;
     public bool $withdrawDone = false;
     public string $withdrawReceipt = '';
-
-    // ─────────────────────────────────────────────────
-    // AUTH
-    // ─────────────────────────────────────────────────
 
     public function login(): void
     {
@@ -99,10 +90,6 @@ new #[Layout('layouts.guest.app')] class extends Component {
         $this->prof_image = null;
     }
 
-    // ─────────────────────────────────────────────────
-    // TABS
-    // ─────────────────────────────────────────────────
-
     public function setTab(string $tab): void
     {
         if (! in_array($tab, ['overview', 'profile', 'withdraw'], true)) return;
@@ -115,10 +102,6 @@ new #[Layout('layouts.guest.app')] class extends Component {
             }
         }
     }
-
-    // ─────────────────────────────────────────────────
-    // PROFILE
-    // ─────────────────────────────────────────────────
 
     protected function profileRules(): array
     {
@@ -183,10 +166,6 @@ new #[Layout('layouts.guest.app')] class extends Component {
         session()->flash('profile_saved', 'Profile updated successfully.');
     }
 
-    // ─────────────────────────────────────────────────
-    // WITHDRAW
-    // ─────────────────────────────────────────────────
-
     protected function withdrawRules(): array
     {
         $max = min(self::WITHDRAW_MAX, (float) ($this->nominee?->kes_balance ?? 0));
@@ -204,7 +183,6 @@ new #[Layout('layouts.guest.app')] class extends Component {
         $this->withdrawDone = false;
         $this->resetValidation();
 
-        // Fresh pull — never trust cached component state for money
         $nominee = Nomination::find($this->nominationId);
         if (! $nominee) {
             $this->addError('withdraw_amount', 'Account not found.');
@@ -213,7 +191,6 @@ new #[Layout('layouts.guest.app')] class extends Component {
 
         $this->validate($this->withdrawRules());
 
-        // Server-side cooldown
         $last = Transaction::where('nomination_id', $nominee->id)
             ->where('type', 'b2c_withdrawal')
             ->whereIn('status', ['pending', 'completed'])
@@ -223,8 +200,7 @@ new #[Layout('layouts.guest.app')] class extends Component {
         if ($last && $last->created_at->gt(now()->subMinutes(self::WITHDRAW_COOLDOWN))) {
             $mins = now()->diffInMinutes($last->created_at->addMinutes(self::WITHDRAW_COOLDOWN), false);
             $this->addError('withdraw_amount',
-                "You can withdraw again in about {$mins} minute" . ($mins === 1 ? '' : 's') .
-                ". Please wait before requesting another payout.");
+                "You can withdraw again in about {$mins} minute" . ($mins === 1 ? '' : 's') . '.');
             return;
         }
 
@@ -280,10 +256,6 @@ new #[Layout('layouts.guest.app')] class extends Component {
         }
     }
 
-    // ─────────────────────────────────────────────────
-    // COMPUTED
-    // ─────────────────────────────────────────────────
-
     #[Computed]
     public function nominee(): ?Nomination
     {
@@ -326,7 +298,6 @@ new #[Layout('layouts.guest.app')] class extends Component {
             ->first();
     }
 
-    // FIXED: CarbonInterface works with both Carbon and CarbonImmutable
     #[Computed]
     public function nextWithdrawalAt(): ?\Carbon\CarbonInterface
     {
@@ -341,9 +312,12 @@ new #[Layout('layouts.guest.app')] class extends Component {
         return ! $next || $next->isPast();
     }
 
-    // ─────────────────────────────────────────────────
-    // HELPERS
-    // ─────────────────────────────────────────────────
+    #[Computed]
+    public function voteUrl(): string
+    {
+        $code = $this->nominee?->code;
+        return $code ? route('polls.vote', $code) : '';
+    }
 
     public function maskPhone(?string $phone): string
     {
@@ -366,549 +340,613 @@ new #[Layout('layouts.guest.app')] class extends Component {
 };
 ?>
 
-<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+@php
+    $shareUrl  = $isAuthenticated ? $this->voteUrl : '';
+    $shareText = $isAuthenticated
+        ? 'Vote for ' . ($this->nominee?->name ?? '') . ' on Go Getter Africa!'
+        : '';
+
+    $tabs = [
+        'overview' => ['Overview', 'chart-bar'],
+        'profile'  => ['Profile',  'user-circle'],
+        'withdraw' => ['Withdraw', 'banknotes'],
+    ];
+@endphp
+
+<div class="min-h-screen bg-gradient-to-b from-gray-900 to-gray-950 text-white">
 
     {{-- ═══════════════ LOGIN ═══════════════ --}}
     @if (! $isAuthenticated)
-        <div class="max-w-md mx-auto mt-10">
-            <div class="text-center mb-8">
-                <div class="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-500/20 shadow-[0_0_30px_rgba(239,68,68,0.1)]">
-                    <flux:icon.lock-closed class="w-8 h-8 text-red-500" />
+        <div class="min-h-screen flex items-center justify-center px-4 py-8">
+            <div class="w-full max-w-sm">
+                <div class="text-center mb-6">
+                    <div class="w-14 h-14 bg-red-500/10 rounded-2xl flex items-center justify-center mx-auto mb-3 border border-red-500/20">
+                        <flux:icon.lock-closed class="w-7 h-7 text-red-500" />
+                    </div>
+                    <h1 class="text-2xl font-bold text-white">Nominee Portal</h1>
+                    <p class="text-xs text-gray-400 mt-1.5">Sign in to manage your campaign.</p>
                 </div>
-                <h1 class="text-3xl font-bold text-white">Nominee Portal</h1>
-                <p class="text-gray-400 mt-2">Enter your Voting Code and PIN to manage your campaign.</p>
-            </div>
 
-            <div class="bg-gray-800 rounded-2xl border border-gray-700 shadow-2xl p-8">
-                <form wire:submit="login" class="space-y-5">
-                    @if ($loginError)
-                        <div class="p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-sm text-red-400 text-center font-medium">
-                            {{ $loginError }}
+                <div class="bg-gray-800/60 backdrop-blur rounded-2xl border border-gray-700 p-5 shadow-2xl">
+                    <form wire:submit="login" class="space-y-4">
+                        @if ($loginError)
+                            <div class="p-2.5 bg-red-500/10 border border-red-500/20 rounded-lg text-xs text-red-400 text-center font-medium">
+                                {{ $loginError }}
+                            </div>
+                        @endif
+
+                        <div>
+                            <label class="block text-xs font-medium text-gray-400 mb-1">Voting Code</label>
+                            <input type="text" wire:model="code" placeholder="NOM-FX123"
+                                   class="block w-full px-3 py-2.5 bg-gray-900 border border-gray-600 rounded-lg text-white text-sm font-mono uppercase focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500">
                         </div>
-                    @endif
 
-                    <div>
-                        <label class="block text-sm font-medium text-gray-400 mb-1">Voting Code</label>
-                        <input type="text" wire:model="code" placeholder="e.g. NOM-FX123"
-                               class="block w-full px-4 py-3 bg-gray-900 border border-gray-600 rounded-xl text-white font-mono uppercase focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors">
-                    </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-400 mb-1">PIN</label>
+                            <input type="password" wire:model="pin" placeholder="••••"
+                                   class="block w-full px-3 py-2.5 bg-gray-900 border border-gray-600 rounded-lg text-white text-sm font-mono tracking-widest focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500">
+                        </div>
 
-                    <div>
-                        <label class="block text-sm font-medium text-gray-400 mb-1">Access PIN</label>
-                        <input type="password" wire:model="pin" placeholder="••••"
-                               class="block w-full px-4 py-3 bg-gray-900 border border-gray-600 rounded-xl text-white font-mono tracking-widest focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors">
-                    </div>
+                        <button type="submit" wire:loading.attr="disabled"
+                                class="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white text-sm font-bold rounded-lg transition-all">
+                            <span wire:loading.remove wire:target="login">Sign In</span>
+                            <span wire:loading wire:target="login">Verifying…</span>
+                        </button>
+                    </form>
+                </div>
 
-                    <button type="submit" wire:loading.attr="disabled"
-                            class="w-full mt-4 flex items-center justify-center px-4 py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl transition-all shadow-lg shadow-red-600/20">
-                        <span wire:loading.remove wire:target="login">Access Dashboard</span>
-                        <span wire:loading wire:target="login">Verifying...</span>
-                    </button>
-                </form>
+                <p class="text-[10px] text-gray-600 text-center mt-6">
+                    <a href="/" class="hover:text-gray-400">← Back to site</a>
+                </p>
             </div>
         </div>
 
     {{-- ═══════════════ AUTHENTICATED ═══════════════ --}}
     @else
 
-        {{-- Header --}}
-        <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-8 border-b border-gray-700 pb-6">
-            <div class="flex items-center gap-4">
+        {{-- Sticky header --}}
+        <header class="sticky top-0 z-40 bg-gray-900/80 backdrop-blur-xl border-b border-gray-800">
+            <div class="px-4 py-3 flex items-center gap-3 max-w-5xl mx-auto">
                 @if ($this->nominee?->profile_image)
                     <img src="{{ asset('storage/' . $this->nominee->profile_image) }}"
-                         class="h-14 w-14 rounded-full object-cover border-2 border-gray-600">
+                         class="w-9 h-9 rounded-full object-cover border border-gray-700 shrink-0">
                 @else
-                    <div class="h-14 w-14 rounded-full bg-gray-800 border-2 border-gray-600 flex items-center justify-center text-gray-400 font-bold text-xl">
+                    <div class="w-9 h-9 rounded-full bg-gray-800 border border-gray-700 flex items-center justify-center text-gray-400 font-bold text-sm shrink-0">
                         {{ substr($this->nominee->name ?? '?', 0, 1) }}
                     </div>
                 @endif
-                <div class="min-w-0">
-                    <h1 class="text-2xl font-bold text-white truncate">{{ $this->nominee->name ?? '' }}</h1>
-                    <p class="text-sm text-gray-400">
-                        Code <span class="font-mono text-yellow-500">{{ $this->nominee->code ?? '' }}</span>
-                        • {{ $this->nominee->category->name ?? '' }}
-                    </p>
+
+                <div class="flex-1 min-w-0">
+                    <div class="text-sm font-bold text-white truncate leading-tight">
+                        {{ $this->nominee->name ?? '' }}
+                    </div>
+                    <div class="text-[10px] text-gray-500 truncate leading-tight">
+                        <span class="font-mono text-yellow-500">{{ $this->nominee->code ?? '' }}</span>
+                        · {{ $this->nominee->category->name ?? '' }}
+                    </div>
                 </div>
+
+                <button wire:click="logout"
+                        class="shrink-0 p-2 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition-colors"
+                        title="Sign out">
+                    <flux:icon.arrow-right-start-on-rectangle class="w-4 h-4" />
+                </button>
             </div>
-            <button wire:click="logout"
-                    class="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg text-sm font-bold border border-gray-600 transition-colors self-start sm:self-auto inline-flex items-center gap-2">
-                <flux:icon.arrow-right-start-on-rectangle class="w-4 h-4" />
-                Log Out
-            </button>
-        </div>
+
+            {{-- ═════ DESKTOP TABS — directly under the header ═════ --}}
+            <div class="hidden lg:block border-t border-gray-800/60">
+                <nav class="max-w-5xl mx-auto px-4 flex gap-1" aria-label="Tabs">
+                    @foreach ($tabs as $key => [$label, $icon])
+                        <button wire:click="setTab('{{ $key }}')" type="button"
+                                @class([
+                                    'inline-flex items-center gap-2 px-4 py-3 text-sm font-bold border-b-2 transition-colors',
+                                    'border-red-500 text-white' => $activeTab === $key,
+                                    'border-transparent text-gray-400 hover:text-gray-200 hover:border-gray-600' => $activeTab !== $key,
+                                ])>
+                            <flux:icon :name="$icon" class="w-4 h-4" />
+                            {{ $label }}
+                        </button>
+                    @endforeach
+                </nav>
+            </div>
+        </header>
 
         {{-- Flash --}}
         @if (session()->has('profile_saved'))
-            <div x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 3500)"
-                 class="p-4 mb-6 text-sm text-green-900 bg-green-400 rounded-lg flex items-center justify-between border border-green-500">
-                <div class="flex items-center gap-2">
-                    <flux:icon.check-circle class="w-5 h-5" />
-                    {{ session('profile_saved') }}
+            <div x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 3000)"
+                 class="max-w-5xl mx-auto px-4 mt-3">
+                <div class="p-3 text-xs text-green-100 bg-green-600/90 rounded-xl flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <flux:icon.check-circle class="w-4 h-4 shrink-0" />
+                        {{ session('profile_saved') }}
+                    </div>
+                    <button @click="show = false" class="text-green-200 hover:text-white">
+                        <flux:icon.x-mark class="w-3.5 h-3.5" />
+                    </button>
                 </div>
-                <button @click="show = false" class="text-green-900 hover:text-green-800">
-                    <flux:icon.x-mark class="w-4 h-4" />
-                </button>
             </div>
         @endif
 
-        {{-- Tabs --}}
-        <div class="mb-6 border-b border-gray-700">
-            <nav class="flex gap-1 -mb-px overflow-x-auto" aria-label="Tabs">
-                @php
-                    $tabs = [
-                        'overview' => ['Overview',     'chart-bar'],
-                        'profile'  => ['Edit Profile', 'user-circle'],
-                        'withdraw' => ['Withdraw',     'banknotes'],
-                    ];
-                @endphp
+        {{-- Main content --}}
+        <main class="px-4 pt-4 pb-32 lg:pb-12 max-w-5xl mx-auto">
 
-                @foreach ($tabs as $key => [$label, $icon])
-                    <button wire:click="setTab('{{ $key }}')" type="button"
-                            @class([
-                                'group inline-flex items-center gap-2 px-4 py-3 text-sm font-bold whitespace-nowrap border-b-2 transition-colors',
-                                'border-red-500 text-white' => $activeTab === $key,
-                                'border-transparent text-gray-400 hover:text-gray-200 hover:border-gray-600' => $activeTab !== $key,
-                            ])>
-                        <flux:icon :name="$icon"
-                                   @class([
-                                       'w-4 h-4 transition-colors',
-                                       'text-red-500' => $activeTab === $key,
-                                       'text-gray-500 group-hover:text-gray-400' => $activeTab !== $key,
-                                   ]) />
-                        {{ $label }}
-                    </button>
-                @endforeach
-            </nav>
-        </div>
+            {{-- ═══════ TAB: OVERVIEW ═══════ --}}
+            @if ($activeTab === 'overview')
 
-        {{-- ═══════════════ TAB: OVERVIEW ═══════════════ --}}
-        @if ($activeTab === 'overview')
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                <div class="bg-gray-800 rounded-2xl p-6 border border-gray-700 shadow-xl flex items-center gap-5">
-                    <div class="w-14 h-14 rounded-full bg-yellow-500/10 flex items-center justify-center border border-yellow-500/20 shrink-0">
-                        <flux:icon.trophy class="w-7 h-7 text-yellow-500" />
+                <div class="grid grid-cols-2 gap-3 mb-4">
+                    <div class="bg-gray-800/60 rounded-2xl p-3.5 border border-gray-700/60">
+                        <div class="flex items-center gap-2 mb-2">
+                            <div class="w-7 h-7 rounded-lg bg-yellow-500/10 flex items-center justify-center shrink-0">
+                                <flux:icon.trophy class="w-3.5 h-3.5 text-yellow-500" />
+                            </div>
+                            <span class="text-[10px] uppercase tracking-wider text-gray-500 font-bold">Votes</span>
+                        </div>
+                        <div class="text-2xl font-mono font-bold text-white leading-none">
+                            {{ number_format((int) ($this->nominee->total_votes ?? 0)) }}
+                        </div>
                     </div>
-                    <div>
-                        <div class="text-sm text-gray-400 uppercase tracking-wider font-bold mb-1">Total Votes</div>
-                        <div class="text-3xl font-mono font-bold text-white">{{ number_format((int) ($this->nominee->total_votes ?? 0)) }}</div>
-                    </div>
-                </div>
 
-                <div class="bg-gray-800 rounded-2xl p-6 border border-gray-700 shadow-xl flex items-center gap-5">
-                    <div class="w-14 h-14 rounded-full bg-green-500/10 flex items-center justify-center border border-green-500/20 shrink-0">
-                        <flux:icon.wallet class="w-7 h-7 text-green-500" />
-                    </div>
-                    <div>
-                        <div class="text-sm text-gray-400 uppercase tracking-wider font-bold mb-1">Commission Balance</div>
-                        <div class="text-3xl font-mono font-bold text-green-400">
-                            {{ number_format((float) ($this->nominee->kes_balance ?? 0), 2) }}
+                    <div class="bg-gray-800/60 rounded-2xl p-3.5 border border-gray-700/60">
+                        <div class="flex items-center gap-2 mb-2">
+                            <div class="w-7 h-7 rounded-lg bg-green-500/10 flex items-center justify-center shrink-0">
+                                <flux:icon.wallet class="w-3.5 h-3.5 text-green-500" />
+                            </div>
+                            <span class="text-[10px] uppercase tracking-wider text-gray-500 font-bold">Balance</span>
+                        </div>
+                        <div class="text-2xl font-mono font-bold text-green-400 leading-none">
+                            <span class="text-sm text-gray-500">KES</span>
+                            {{ number_format((float) ($this->nominee->kes_balance ?? 0), 0) }}
                         </div>
                     </div>
                 </div>
-            </div>
 
-            <div class="bg-gray-800 rounded-2xl border border-gray-700 shadow-xl overflow-hidden">
-                <div class="px-6 py-5 border-b border-gray-700 bg-gray-900/50 flex items-center justify-between gap-3">
-                    <h3 class="text-lg font-bold text-white">Financial Activity</h3>
-                    <span class="hidden sm:inline text-xs text-gray-500">Voter numbers masked per Kenyan data protection rules</span>
-                </div>
+                @if ($shareUrl)
+                    <div class="bg-gradient-to-br from-red-900/40 to-gray-800/60 rounded-2xl p-4 border border-red-500/20 mb-4">
+                        <div class="flex items-center gap-3">
+                            <div class="w-9 h-9 rounded-xl bg-red-500/20 border border-red-500/30 flex items-center justify-center shrink-0">
+                                <flux:icon.link class="w-4 h-4 text-red-400" />
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <div class="text-[10px] uppercase tracking-wider text-red-300/80 font-bold">Your vote link</div>
+                                <div class="text-xs font-mono text-gray-300 truncate">{{ $shareUrl }}</div>
+                            </div>
 
-                @if ($this->transactions->count() > 0)
-                    <div class="overflow-x-auto">
-                        <table class="min-w-full divide-y divide-gray-700">
-                            <thead class="bg-gray-900/30">
-                                <tr>
-                                    <th class="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Date</th>
-                                    <th class="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Type</th>
-                                    <th class="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Voter</th>
-                                    <th class="px-6 py-4 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider">Amount</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-gray-700">
-                                @foreach ($this->transactions as $txn)
-                                    <tr wire:key="txn-{{ $txn->id }}" class="hover:bg-gray-700/30 transition-colors">
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400">
-                                            {{ $txn->created_at->format('M d, Y h:i A') }}
-                                        </td>
-                                        <td class="px-6 py-4 whitespace-nowrap">
-                                            @if ($txn->type === 'stk_push')
-                                                <span class="inline-flex items-center gap-1 px-2 py-1 bg-green-500/10 text-green-400 text-xs font-bold rounded border border-green-500/20">
-                                                    <flux:icon.arrow-trending-up class="w-3 h-3" />
-                                                    Vote Received
-                                                </span>
-                                            @else
-                                                <span class="px-2 py-1 bg-blue-500/10 text-blue-400 text-xs font-bold rounded border border-blue-500/20">
-                                                    {{ $txn->type }}
-                                                </span>
-                                            @endif
-                                        </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-300 font-mono">
-                                            {{ $this->maskPhone($txn->phone_number) }}
-                                        </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-right font-mono font-bold {{ $txn->type === 'stk_push' ? 'text-green-400' : 'text-red-400' }}">
-                                            {{ $txn->type === 'stk_push' ? '+' : '−' }} {{ number_format($txn->amount, 2) }}
-                                        </td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
-                    </div>
-                    @if ($this->transactions->hasPages())
-                        <div class="p-4 border-t border-gray-700 bg-gray-900/30">
-                            {{ $this->transactions->links() }}
+                            <button type="button"
+                                    x-data="{
+                                        copied: false,
+                                        async share() {
+                                            const data = {
+                                                title: @js($this->nominee->name),
+                                                text: @js($shareText),
+                                                url: @js($shareUrl),
+                                            };
+                                            if (navigator.share) {
+                                                try { await navigator.share(data); }
+                                                catch (e) {}
+                                            } else {
+                                                await this.copy();
+                                            }
+                                        },
+                                        async copy() {
+                                            try {
+                                                await navigator.clipboard.writeText(@js($shareUrl));
+                                                this.copied = true;
+                                                setTimeout(() => this.copied = false, 1800);
+                                            } catch (e) {}
+                                        }
+                                    }"
+                                    x-on:click="share()"
+                                    class="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white text-xs font-bold transition-colors">
+                                <template x-if="!copied">
+                                    <span class="inline-flex items-center gap-1.5">
+                                        <flux:icon.arrow-up-tray class="w-3.5 h-3.5" />
+                                        Share
+                                    </span>
+                                </template>
+                                <template x-if="copied">
+                                    <span class="inline-flex items-center gap-1.5 text-green-200">
+                                        <flux:icon.check class="w-3.5 h-3.5" />
+                                        Copied
+                                    </span>
+                                </template>
+                            </button>
                         </div>
-                    @endif
-                @else
-                    <div class="py-16 px-4 text-center">
-                        <flux:icon.document-text class="w-12 h-12 text-gray-600 mx-auto mb-3" />
-                        <p class="text-sm text-gray-400">No financial activity recorded yet.</p>
                     </div>
                 @endif
-            </div>
-        @endif
 
-        {{-- ═══════════════ TAB: PROFILE ═══════════════ --}}
-        @if ($activeTab === 'profile')
-            <form wire:submit="saveProfile" class="bg-gray-800 rounded-2xl border border-gray-700 shadow-xl overflow-hidden">
-                <div class="px-6 py-5 border-b border-gray-700 bg-gray-900/50">
-                    <h3 class="text-lg font-bold text-white">Edit Your Public Profile</h3>
-                    <p class="text-xs text-gray-400 mt-1">This is what voters see on your voting page. Keep it fresh.</p>
+                <div class="bg-gray-800/60 rounded-2xl border border-gray-700/60 overflow-hidden">
+                    <div class="px-4 py-3 border-b border-gray-700/60 flex items-center justify-between">
+                        <h3 class="text-sm font-bold text-white">Recent activity</h3>
+                        <span class="text-[10px] text-gray-500">Numbers masked</span>
+                    </div>
+
+                    @if ($this->transactions->count() > 0)
+                        <ul class="divide-y divide-gray-700/40">
+                            @foreach ($this->transactions as $txn)
+                                <li wire:key="txn-{{ $txn->id }}" class="px-4 py-3 flex items-center gap-3">
+                                    <div @class([
+                                        'w-8 h-8 rounded-full flex items-center justify-center shrink-0',
+                                        'bg-green-500/10 text-green-500' => $txn->type === 'stk_push',
+                                        'bg-blue-500/10 text-blue-400' => $txn->type !== 'stk_push',
+                                    ])>
+                                        @if ($txn->type === 'stk_push')
+                                            <flux:icon.arrow-trending-up class="w-3.5 h-3.5" />
+                                        @else
+                                            <flux:icon.arrow-down-tray class="w-3.5 h-3.5" />
+                                        @endif
+                                    </div>
+
+                                    <div class="flex-1 min-w-0">
+                                        <div class="text-xs font-semibold text-white truncate">
+                                            @if ($txn->type === 'stk_push')
+                                                Vote from {{ $this->maskPhone($txn->phone_number) }}
+                                            @else
+                                                {{ Str::headline($txn->type) }}
+                                            @endif
+                                        </div>
+                                        <div class="text-[10px] text-gray-500 truncate">
+                                            {{ $txn->created_at->format('M d, H:i') }}
+                                            @if ($txn->receipt_number)
+                                                · <span class="font-mono">{{ $txn->receipt_number }}</span>
+                                            @endif
+                                        </div>
+                                    </div>
+
+                                    <div @class([
+                                        'text-sm font-mono font-bold shrink-0',
+                                        'text-green-400' => $txn->type === 'stk_push',
+                                        'text-red-400' => $txn->type !== 'stk_push',
+                                    ])>
+                                        {{ $txn->type === 'stk_push' ? '+' : '−' }}{{ number_format($txn->amount, 0) }}
+                                    </div>
+                                </li>
+                            @endforeach
+                        </ul>
+
+                        @if ($this->transactions->hasPages())
+                            <div class="p-3 border-t border-gray-700/60">
+                                {{ $this->transactions->links() }}
+                            </div>
+                        @endif
+                    @else
+                        <div class="py-12 text-center">
+                            <flux:icon.document-text class="w-8 h-8 text-gray-600 mx-auto mb-2" />
+                            <p class="text-xs text-gray-500">No activity yet.</p>
+                        </div>
+                    @endif
                 </div>
+            @endif
 
-                <div class="p-6 space-y-8">
+            {{-- ═══════ TAB: PROFILE ═══════ --}}
+            @if ($activeTab === 'profile')
+                <form wire:submit="saveProfile" class="space-y-4">
 
-                    {{-- Photo --}}
-                    <div>
-                        <label class="block text-sm font-medium text-gray-300 mb-3">Profile Photo</label>
-                        <div class="flex flex-col sm:flex-row items-center gap-5">
+                    <div class="bg-gray-800/60 rounded-2xl border border-gray-700/60 p-4">
+                        <label class="block text-xs font-medium text-gray-400 mb-3">Profile Photo</label>
+                        <div class="flex items-center gap-4">
                             @if ($prof_image)
-                                <div class="relative group shrink-0">
-                                    <img src="{{ $prof_image->temporaryUrl() }}"
-                                         class="w-24 h-24 rounded-full object-cover border-2 border-yellow-500">
+                                <div class="relative shrink-0">
+                                    <img src="{{ $prof_image->temporaryUrl() }}" class="w-16 h-16 rounded-2xl object-cover border-2 border-yellow-500">
                                     <button type="button" wire:click="removeProfileImage"
-                                            class="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-1.5 shadow-lg hover:bg-red-600">
+                                            class="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full p-1">
                                         <flux:icon.x-mark class="w-3 h-3" />
                                     </button>
                                 </div>
                             @elseif ($existing_image)
                                 <div class="relative group shrink-0">
-                                    <img src="{{ asset('storage/' . $existing_image) }}"
-                                         class="w-24 h-24 rounded-full object-cover border border-gray-600">
+                                    <img src="{{ asset('storage/' . $existing_image) }}" class="w-16 h-16 rounded-2xl object-cover border border-gray-600">
                                     <button type="button" wire:click="removeExistingImage"
-                                            class="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-1.5 shadow-lg hover:bg-red-600 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            class="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                         <flux:icon.x-mark class="w-3 h-3" />
                                     </button>
                                 </div>
                             @else
-                                <div class="w-24 h-24 rounded-full bg-gray-900 border border-gray-600 flex items-center justify-center text-gray-500 font-bold text-3xl shrink-0">
+                                <div class="w-16 h-16 rounded-2xl bg-gray-900 border border-gray-700 flex items-center justify-center text-gray-500 font-bold text-2xl shrink-0">
                                     {{ substr($prof_name ?: '?', 0, 1) }}
                                 </div>
                             @endif
 
-                            <div class="flex-1 w-full">
-                                <label for="profile-image-input"
-                                       class="flex flex-col items-center justify-center w-full h-24 border-2 border-gray-600 border-dashed rounded-xl cursor-pointer bg-gray-900 hover:bg-gray-700/50 hover:border-yellow-500 transition-all">
-                                    <flux:icon.photo class="w-6 h-6 text-gray-400 mb-1" />
-                                    <p class="text-sm text-gray-400">
-                                        <span class="font-semibold text-yellow-500">Upload image</span> — max 2MB
-                                    </p>
-                                    <input id="profile-image-input" type="file" wire:model="prof_image" class="hidden" accept="image/*">
-                                </label>
-                                <div wire:loading wire:target="prof_image" class="text-xs text-yellow-500 mt-2">Uploading…</div>
-                                @error('prof_image') <span class="text-xs text-red-400 mt-1 block">{{ $message }}</span> @enderror
+                            <label for="profile-image-input"
+                                   class="flex-1 flex items-center justify-center gap-2 h-16 border-2 border-gray-600 border-dashed rounded-xl cursor-pointer bg-gray-900/50 hover:bg-gray-800 hover:border-yellow-500 transition-all">
+                                <flux:icon.photo class="w-4 h-4 text-gray-400" />
+                                <span class="text-xs text-gray-400">
+                                    <span class="font-semibold text-yellow-500">Upload</span> · max 2MB
+                                </span>
+                                <input id="profile-image-input" type="file" wire:model="prof_image" class="hidden" accept="image/*">
+                            </label>
+                        </div>
+                        @error('prof_image') <span class="text-[11px] text-red-400 mt-2 block">{{ $message }}</span> @enderror
+                    </div>
+
+                    <div class="bg-gray-800/60 rounded-2xl border border-gray-700/60 p-4 space-y-3">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-400 mb-1">Display Name *</label>
+                            <input type="text" wire:model="prof_name"
+                                   class="block w-full bg-gray-900 border border-gray-600 rounded-lg text-white text-sm px-3 py-2 focus:ring-yellow-500 focus:border-yellow-500">
+                            @error('prof_name') <span class="text-[11px] text-red-400 mt-1 block">{{ $message }}</span> @enderror
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-medium text-gray-400 mb-1">Company / Show</label>
+                            <input type="text" wire:model="prof_company" placeholder="e.g. Citizen TV"
+                                   class="block w-full bg-gray-900 border border-gray-600 rounded-lg text-white text-sm px-3 py-2 focus:ring-yellow-500 focus:border-yellow-500">
+                            @error('prof_company') <span class="text-[11px] text-red-400 mt-1 block">{{ $message }}</span> @enderror
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-medium text-gray-400 mb-1">Bio</label>
+                            <textarea wire:model.live="prof_bio" rows="3" maxlength="1000"
+                                      placeholder="Tell voters why they should support you…"
+                                      class="block w-full bg-gray-900 border border-gray-600 rounded-lg text-white text-sm px-3 py-2 focus:ring-yellow-500 focus:border-yellow-500"></textarea>
+                            <div class="flex justify-between mt-1">
+                                @error('prof_bio') <span class="text-[11px] text-red-400">{{ $message }}</span> @enderror
+                                <span class="text-[10px] text-gray-500 ml-auto">{{ strlen($prof_bio) }}/1000</span>
                             </div>
                         </div>
                     </div>
 
-                    {{-- Name & Company --}}
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5 border-t border-gray-700 pt-6">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-300 mb-1">Display Name *</label>
-                            <input type="text" wire:model="prof_name"
-                                   class="block w-full bg-gray-900 border border-gray-600 rounded-lg text-white focus:ring-yellow-500 focus:border-yellow-500 sm:text-sm px-4 py-2.5">
-                            @error('prof_name') <span class="text-xs text-red-400 mt-1 block">{{ $message }}</span> @enderror
-                        </div>
-
-                        <div>
-                            <label class="block text-sm font-medium text-gray-300 mb-1">Company / Show</label>
-                            <input type="text" wire:model="prof_company" placeholder="e.g. Citizen TV"
-                                   class="block w-full bg-gray-900 border border-gray-600 rounded-lg text-white focus:ring-yellow-500 focus:border-yellow-500 sm:text-sm px-4 py-2.5">
-                            @error('prof_company') <span class="text-xs text-red-400 mt-1 block">{{ $message }}</span> @enderror
-                        </div>
-                    </div>
-
-                    {{-- Bio --}}
-                    <div class="border-t border-gray-700 pt-6">
-                        <label class="block text-sm font-medium text-gray-300 mb-1">Bio</label>
-                        <textarea wire:model.live="prof_bio" rows="4" maxlength="1000"
-                                  placeholder="Tell voters who you are and why they should support you…"
-                                  class="block w-full bg-gray-900 border border-gray-600 rounded-lg text-white focus:ring-yellow-500 focus:border-yellow-500 sm:text-sm px-4 py-2.5"></textarea>
-                        <div class="flex justify-between mt-1">
-                            @error('prof_bio') <span class="text-xs text-red-400">{{ $message }}</span> @enderror
-                            <span class="text-xs text-gray-500 ml-auto">{{ strlen($prof_bio) }} / 1000</span>
-                        </div>
-                    </div>
-
-                    {{-- Socials --}}
-                    <div class="border-t border-gray-700 pt-6">
-                        <h4 class="text-sm font-bold text-gray-300 mb-3 uppercase tracking-wider">Social Links</h4>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="bg-gray-800/60 rounded-2xl border border-gray-700/60 p-4">
+                        <h4 class="text-[10px] font-bold text-gray-400 mb-3 uppercase tracking-wider">Social Links</h4>
+                        <div class="space-y-2.5">
                             @foreach ([
-                                'prof_facebook'  => 'Facebook URL',
-                                'prof_instagram' => 'Instagram URL',
-                                'prof_twitter'   => 'Twitter / X URL',
-                                'prof_tiktok'    => 'TikTok URL',
-                                'prof_youtube'   => 'YouTube URL',
-                                'prof_website'   => 'Website URL',
-                            ] as $field => $placeholder)
+                                'prof_facebook'  => 'Facebook',
+                                'prof_instagram' => 'Instagram',
+                                'prof_twitter'   => 'Twitter / X',
+                                'prof_tiktok'    => 'TikTok',
+                                'prof_youtube'   => 'YouTube',
+                                'prof_website'   => 'Website',
+                            ] as $field => $label)
                                 <div>
-                                    <input type="url" wire:model="{{ $field }}" placeholder="{{ $placeholder }}"
-                                           class="block w-full bg-gray-900 border border-gray-600 rounded-lg text-gray-300 focus:ring-yellow-500 focus:border-yellow-500 sm:text-sm px-4 py-2.5">
-                                    @error($field) <span class="text-xs text-red-400 mt-1 block">{{ $message }}</span> @enderror
+                                    <label class="block text-[10px] font-medium text-gray-500 mb-1">{{ $label }}</label>
+                                    <input type="url" wire:model="{{ $field }}" placeholder="https://"
+                                           class="block w-full bg-gray-900 border border-gray-600 rounded-lg text-gray-300 text-xs px-3 py-2 focus:ring-yellow-500 focus:border-yellow-500">
+                                    @error($field) <span class="text-[11px] text-red-400 mt-1 block">{{ $message }}</span> @enderror
                                 </div>
                             @endforeach
                         </div>
                     </div>
-                </div>
 
-                <div class="px-6 py-4 bg-gray-900/50 border-t border-gray-700 flex flex-col-reverse sm:flex-row sm:justify-end gap-3">
                     <button type="submit" wire:loading.attr="disabled"
-                            class="w-full sm:w-auto inline-flex justify-center items-center gap-2 rounded-lg bg-yellow-500 hover:bg-yellow-400 px-6 py-2.5 text-sm font-bold text-gray-900 disabled:opacity-60">
+                            class="w-full flex items-center justify-center gap-2 py-3 bg-yellow-500 hover:bg-yellow-400 text-gray-900 text-sm font-bold rounded-xl transition-colors disabled:opacity-60">
                         <flux:icon.check class="w-4 h-4" wire:loading.remove wire:target="saveProfile" />
                         <span wire:loading.remove wire:target="saveProfile">Save Changes</span>
                         <span wire:loading wire:target="saveProfile">Saving…</span>
                     </button>
-                </div>
-            </form>
-        @endif
+                </form>
+            @endif
 
-        {{-- ═══════════════ TAB: WITHDRAW ═══════════════ --}}
-        @if ($activeTab === 'withdraw')
-            @php
-                $balance = (float) ($this->nominee->kes_balance ?? 0);
-                $canWithdraw = $this->canWithdraw;
-                $nextAt = $this->nextWithdrawalAt;
-                $last = $this->lastWithdrawal;
-            @endphp
+            {{-- ═══════ TAB: WITHDRAW ═══════ --}}
+            @if ($activeTab === 'withdraw')
+                @php
+                    $balance = (float) ($this->nominee->kes_balance ?? 0);
+                    $canWithdraw = $this->canWithdraw;
+                    $nextAt = $this->nextWithdrawalAt;
+                @endphp
 
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-                {{-- Main column --}}
-                <div class="lg:col-span-2 space-y-6">
-
-                    {{-- Balance + rules --}}
-                    <div class="bg-gradient-to-br from-green-900/40 to-gray-800 rounded-2xl border border-green-500/20 p-6 shadow-xl">
-                        <div class="flex items-start justify-between mb-4 gap-4">
-                            <div class="min-w-0">
-                                <div class="text-xs uppercase tracking-widest text-green-400 font-bold mb-1">Available to withdraw</div>
-                                <div class="text-4xl font-mono font-bold text-white">
-                                    KES {{ number_format($balance, 2) }}
-                                </div>
+                <div class="bg-gradient-to-br from-green-900/40 via-green-800/20 to-gray-800/60 rounded-2xl border border-green-500/20 p-4 mb-4">
+                    <div class="flex items-start justify-between gap-3 mb-4">
+                        <div class="min-w-0">
+                            <div class="text-[10px] uppercase tracking-widest text-green-400 font-bold mb-1">Available</div>
+                            <div class="text-3xl font-mono font-bold text-white leading-none">
+                                <span class="text-sm text-gray-400">KES</span>
+                                {{ number_format($balance, 0) }}
                             </div>
-                            <div class="w-12 h-12 rounded-full bg-green-500/20 border border-green-500/30 flex items-center justify-center shrink-0">
-                                <flux:icon.arrow-down-tray class="w-6 h-6 text-green-400" />
+                            <div class="text-[10px] text-gray-500 mt-1 font-mono">
+                                {{ number_format($balance, 2) }} exact
                             </div>
                         </div>
-
-                        <div class="grid grid-cols-2 gap-3 text-xs">
-                            <div class="rounded-lg bg-black/20 px-3 py-2">
-                                <div class="text-gray-400">Max per withdrawal</div>
-                                <div class="font-mono font-bold text-white">KES {{ number_format($this->withdrawalCap()) }}</div>
-                            </div>
-                            <div class="rounded-lg bg-black/20 px-3 py-2">
-                                <div class="text-gray-400">Cooldown between requests</div>
-                                <div class="font-mono font-bold text-white">{{ $this->cooldownMinutes() }} min</div>
-                            </div>
+                        <div class="w-10 h-10 rounded-xl bg-green-500/20 border border-green-500/30 flex items-center justify-center shrink-0">
+                            <flux:icon.arrow-down-tray class="w-5 h-5 text-green-400" />
                         </div>
-
-                        @if ($balance > $this->withdrawalCap())
-                            <div class="mt-4 text-xs text-gray-300 bg-black/20 rounded-lg p-3 flex gap-2">
-                                <flux:icon.information-circle class="w-4 h-4 shrink-0 mt-0.5 text-yellow-500" />
-                                <span>
-                                    Your balance exceeds the KES {{ number_format($this->withdrawalCap()) }} per-withdrawal cap.
-                                    You can withdraw {{ floor($balance / $this->withdrawalCap()) }} × KES {{ number_format($this->withdrawalCap()) }}
-                                    (waiting {{ $this->cooldownMinutes() }} min between each), or contact
-                                    <a href="https://wa.me/254710878056" target="_blank" class="text-yellow-500 underline">support</a>
-                                    to arrange a bulk payout from our side.
-                                </span>
-                            </div>
-                        @endif
                     </div>
 
-                    {{-- Form or success --}}
-                    @if ($withdrawDone)
-                        <div class="bg-gray-800 rounded-2xl border border-green-500/30 p-6 text-center">
-                            <div class="w-16 h-16 mx-auto rounded-full bg-green-500/15 border border-green-500/40 flex items-center justify-center mb-4">
-                                <flux:icon.check-circle class="w-8 h-8 text-green-500" />
-                            </div>
-                            <h3 class="text-xl font-bold text-white mb-2">Withdrawal Submitted</h3>
-                            <p class="text-sm text-gray-400 mb-4">
-                                M-PESA is processing your request. You'll receive funds on your phone within a few minutes.
-                            </p>
-                            @if ($withdrawReceipt)
-                                <div class="text-xs font-mono text-gray-500 bg-gray-900/50 rounded-lg px-3 py-2 inline-block mb-4">
-                                    Ref: {{ $withdrawReceipt }}
-                                </div>
-                            @endif
-                            <div class="text-xs text-gray-500 mb-6">
-                                You can request another withdrawal in {{ $this->cooldownMinutes() }} minutes.
-                            </div>
-                            <button wire:click="$set('withdrawDone', false)"
-                                    class="px-5 py-2.5 bg-gray-700 hover:bg-gray-600 text-white text-sm font-bold rounded-lg border border-gray-600">
-                                Close
-                            </button>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div class="rounded-lg bg-black/20 px-2.5 py-1.5">
+                            <div class="text-[9px] uppercase text-gray-500 font-bold">Max per payout</div>
+                            <div class="text-xs font-mono font-bold text-white">KES {{ number_format($this->withdrawalCap()) }}</div>
                         </div>
-                    @else
-                        <form wire:submit="requestWithdrawal" class="bg-gray-800 rounded-2xl border border-gray-700 shadow-xl p-6 space-y-5">
-                            <h3 class="text-lg font-bold text-white">Request Withdrawal</h3>
+                        <div class="rounded-lg bg-black/20 px-2.5 py-1.5">
+                            <div class="text-[9px] uppercase text-gray-500 font-bold">Cooldown</div>
+                            <div class="text-xs font-mono font-bold text-white">{{ $this->cooldownMinutes() }} min</div>
+                        </div>
+                    </div>
 
-                            @if (! $canWithdraw && $nextAt)
-                                <div class="rounded-xl bg-yellow-500/10 border border-yellow-500/20 p-4 text-sm text-yellow-400 flex gap-3"
-                                     x-data="{
-                                         target: {{ $nextAt->timestamp * 1000 }},
-                                         remaining: '',
-                                         tick() {
-                                             const diff = Math.max(0, this.target - Date.now());
-                                             const m = Math.floor(diff / 60000);
-                                             const s = Math.floor((diff % 60000) / 1000);
-                                             this.remaining = m + 'm ' + String(s).padStart(2, '0') + 's';
-                                             if (diff <= 0) location.reload();
-                                         },
-                                         init() { this.tick(); setInterval(() => this.tick(), 1000); }
-                                     }">
-                                    <flux:icon.clock class="w-5 h-5 shrink-0 mt-0.5" />
-                                    <div>
-                                        <div class="font-bold">Cooldown active</div>
-                                        <div class="text-xs opacity-80 mt-0.5">
-                                            Next withdrawal available in <span class="font-mono font-bold" x-text="remaining"></span>
-                                        </div>
-                                    </div>
-                                </div>
-                            @endif
-
-                            @error('withdraw_amount')
-                                <div class="rounded-xl bg-red-500/10 border border-red-500/20 p-4 text-sm text-red-400 flex items-start gap-2">
-                                    <flux:icon.exclamation-triangle class="w-5 h-5 shrink-0 mt-0.5" />
-                                    <span>{{ $message }}</span>
-                                </div>
-                            @enderror
-
-                            <div>
-                                <label class="block text-sm font-medium text-gray-400 mb-1">M-PESA Phone Number</label>
-                                <div class="relative">
-                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                        <span class="text-gray-500 sm:text-sm">🇰🇪</span>
-                                    </div>
-                                    <input type="tel" wire:model="withdraw_phone" placeholder="0712345678"
-                                           class="block w-full pl-10 pr-3 py-3 bg-gray-900 border border-gray-600 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
-                                           {{ ! $canWithdraw ? 'disabled' : '' }}>
-                                </div>
-                                @error('withdraw_phone') <span class="text-xs text-red-400 mt-1 block">{{ $message }}</span> @enderror
-                            </div>
-
-                            <div>
-                                <label class="block text-sm font-medium text-gray-400 mb-1">Amount (KES)</label>
-                                <div class="relative">
-                                    <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                                        <span class="text-gray-500 font-bold sm:text-sm">KES</span>
-                                    </div>
-                                    <input type="number" wire:model.live="withdraw_amount"
-                                           min="10" max="{{ min($this->withdrawalCap(), $balance) }}" step="1"
-                                           class="block w-full pl-14 pr-3 py-3 bg-gray-900 border border-gray-600 rounded-xl text-white font-mono text-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
-                                           {{ ! $canWithdraw ? 'disabled' : '' }}>
-                                </div>
-                                <div class="flex justify-between items-center mt-2 text-xs text-gray-500">
-                                    <span>Min KES 10 · Max KES {{ number_format(min($this->withdrawalCap(), $balance)) }}</span>
-                                    <button type="button" wire:click="$set('withdraw_amount', {{ min($this->withdrawalCap(), (int) $balance) }})"
-                                            class="text-yellow-500 hover:text-yellow-400 font-bold">Use max</button>
-                                </div>
-                            </div>
-
-                            <div class="rounded-lg bg-gray-900/50 border border-gray-700 px-4 py-3 text-xs text-gray-400 flex items-center justify-between">
-                                <span>You'll receive on your phone</span>
-                                <span class="font-mono font-bold text-green-400 text-base">
-                                    KES {{ number_format(max(0, (float) $withdraw_amount), 2) }}
-                                </span>
-                            </div>
-
-                            <button type="submit"
-                                    wire:loading.attr="disabled"
-                                    {{ (! $canWithdraw || $balance < 10) ? 'disabled' : '' }}
-                                    class="w-full flex items-center justify-center gap-2 px-6 py-4 rounded-xl shadow-lg text-base font-bold text-white bg-green-600 hover:bg-green-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all">
-                                <span wire:loading.remove wire:target="requestWithdrawal" class="inline-flex items-center gap-2">
-                                    <flux:icon.arrow-down-tray class="w-5 h-5" />
-                                    @if ($balance < 10)
-                                        Balance too low
-                                    @elseif (! $canWithdraw)
-                                        Cooldown active
-                                    @else
-                                        Withdraw to M-PESA
-                                    @endif
-                                </span>
-                                <span wire:loading wire:target="requestWithdrawal" class="flex items-center gap-2">
-                                    <svg class="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
-                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-                                    </svg>
-                                    Processing…
-                                </span>
-                            </button>
-                        </form>
+                    @if ($balance > $this->withdrawalCap())
+                        <div class="mt-3 text-[11px] text-gray-300 bg-black/30 rounded-lg p-2.5 flex gap-2">
+                            <flux:icon.information-circle class="w-3.5 h-3.5 shrink-0 mt-0.5 text-yellow-500" />
+                            <span>
+                                Withdraw in chunks of KES {{ number_format($this->withdrawalCap()) }},
+                                {{ $this->cooldownMinutes() }} min apart. Or
+                                <a href="https://wa.me/254710878056" target="_blank" class="text-yellow-500 underline">contact support</a>
+                                for a bulk payout.
+                            </span>
+                        </div>
                     @endif
                 </div>
 
-                {{-- Recent withdrawals --}}
-                <div class="lg:col-span-1">
-                    <div class="bg-gray-800 rounded-2xl border border-gray-700 shadow-xl overflow-hidden lg:sticky lg:top-24">
-                        <div class="px-5 py-4 border-b border-gray-700 bg-gray-900/50 flex items-center justify-between">
-                            <h3 class="text-base font-bold text-white">Recent Withdrawals</h3>
-                            <flux:icon.clock class="w-4 h-4 text-gray-500" />
+                @if ($withdrawDone)
+                    <div class="bg-gray-800/60 rounded-2xl border border-green-500/30 p-6 text-center">
+                        <div class="w-14 h-14 mx-auto rounded-full bg-green-500/15 border border-green-500/40 flex items-center justify-center mb-3">
+                            <flux:icon.check-circle class="w-7 h-7 text-green-500" />
                         </div>
-
-                        @if ($this->withdrawalHistory->count() > 0)
-                            <ul class="divide-y divide-gray-700 max-h-[500px] overflow-y-auto">
-                                @foreach ($this->withdrawalHistory as $w)
-                                    <li wire:key="wd-{{ $w->id }}" class="p-4 hover:bg-gray-700/30 transition-colors">
-                                        <div class="flex justify-between items-start mb-1">
-                                            <div class="text-sm font-mono font-bold text-white">
-                                                KES {{ number_format($w->amount, 2) }}
-                                            </div>
-                                            <span @class([
-                                                'inline-flex items-center gap-1 text-[10px] uppercase font-bold',
-                                                'text-green-500' => $w->status === 'completed',
-                                                'text-red-500'   => $w->status === 'failed',
-                                                'text-yellow-500'=> $w->status === 'pending',
-                                            ])>
-                                                @if ($w->status === 'completed')
-                                                    <flux:icon.check-circle class="w-3 h-3" />
-                                                @elseif ($w->status === 'failed')
-                                                    <flux:icon.x-circle class="w-3 h-3" />
-                                                @else
-                                                    <flux:icon.clock class="w-3 h-3" />
-                                                @endif
-                                                {{ $w->status }}
-                                            </span>
-                                        </div>
-                                        <div class="flex justify-between text-xs text-gray-500">
-                                            <span class="font-mono">{{ $this->maskPhone($w->phone_number) }}</span>
-                                            <span>{{ $w->created_at->diffForHumans() }}</span>
-                                        </div>
-                                    </li>
-                                @endforeach
-                            </ul>
-                        @else
-                            <div class="py-12 px-4 text-center">
-                                <flux:icon.clock class="w-10 h-10 text-gray-600 mx-auto mb-3" />
-                                <p class="text-sm text-gray-500">No withdrawals yet.</p>
+                        <h3 class="text-base font-bold text-white mb-1">Withdrawal Submitted</h3>
+                        <p class="text-xs text-gray-400 mb-3">Funds arrive on your phone within a few minutes.</p>
+                        @if ($withdrawReceipt)
+                            <div class="text-[10px] font-mono text-gray-500 bg-gray-900/50 rounded-lg px-2.5 py-1.5 inline-block mb-3">
+                                Ref: {{ $withdrawReceipt }}
                             </div>
                         @endif
+                        <button wire:click="$set('withdrawDone', false)"
+                                class="w-full py-2.5 bg-gray-700 hover:bg-gray-600 text-white text-xs font-bold rounded-lg border border-gray-600">
+                            Close
+                        </button>
                     </div>
-                </div>
-            </div>
-        @endif
-    @endif
+                @else
+                    <form wire:submit="requestWithdrawal" class="bg-gray-800/60 rounded-2xl border border-gray-700/60 p-4 space-y-4">
+                        <h3 class="text-sm font-bold text-white">Request withdrawal</h3>
 
-    @if ($isAuthenticated)
-        <x-install-pwa />
+                        @if (! $canWithdraw && $nextAt)
+                            <div class="rounded-xl bg-yellow-500/10 border border-yellow-500/20 p-3 text-xs text-yellow-400 flex gap-2"
+                                 x-data="{
+                                     target: {{ $nextAt->timestamp * 1000 }},
+                                     remaining: '',
+                                     tick() {
+                                         const diff = Math.max(0, this.target - Date.now());
+                                         const m = Math.floor(diff / 60000);
+                                         const s = Math.floor((diff % 60000) / 1000);
+                                         this.remaining = m + 'm ' + String(s).padStart(2, '0') + 's';
+                                         if (diff <= 0) location.reload();
+                                     },
+                                     init() { this.tick(); setInterval(() => this.tick(), 1000); }
+                                 }">
+                                <flux:icon.clock class="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                                <div>
+                                    <div class="font-bold">Cooldown active</div>
+                                    <div class="text-[10px] opacity-80 mt-0.5">
+                                        Next withdrawal in <span class="font-mono font-bold" x-text="remaining"></span>
+                                    </div>
+                                </div>
+                            </div>
+                        @endif
+
+                        @error('withdraw_amount')
+                            <div class="rounded-xl bg-red-500/10 border border-red-500/20 p-3 text-xs text-red-400 flex items-start gap-2">
+                                <flux:icon.exclamation-triangle class="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                                <span>{{ $message }}</span>
+                            </div>
+                        @enderror
+
+                        <div>
+                            <label class="block text-xs font-medium text-gray-400 mb-1">M-PESA Number</label>
+                            <div class="relative">
+                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <span class="text-gray-500 text-xs">🇰🇪</span>
+                                </div>
+                                <input type="tel" wire:model="withdraw_phone" placeholder="0712345678"
+                                       class="block w-full pl-9 pr-3 py-2.5 bg-gray-900 border border-gray-600 rounded-lg text-white text-sm focus:ring-green-500 focus:border-green-500"
+                                       {{ ! $canWithdraw ? 'disabled' : '' }}>
+                            </div>
+                            @error('withdraw_phone') <span class="text-[11px] text-red-400 mt-1 block">{{ $message }}</span> @enderror
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-medium text-gray-400 mb-1">Amount (KES)</label>
+                            <div class="relative">
+                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <span class="text-gray-500 text-xs font-bold">KES</span>
+                                </div>
+                                <input type="number" wire:model.live="withdraw_amount"
+                                       min="10" max="{{ min($this->withdrawalCap(), $balance) }}" step="1"
+                                       class="block w-full pl-12 pr-3 py-2.5 bg-gray-900 border border-gray-600 rounded-lg text-white text-base font-mono focus:ring-green-500 focus:border-green-500"
+                                       {{ ! $canWithdraw ? 'disabled' : '' }}>
+                            </div>
+                            <div class="flex justify-between items-center mt-1.5 text-[10px] text-gray-500">
+                                <span>Min 10 · Max {{ number_format(min($this->withdrawalCap(), $balance)) }}</span>
+                                <button type="button" wire:click="$set('withdraw_amount', {{ min($this->withdrawalCap(), (int) $balance) }})"
+                                        class="text-yellow-500 hover:text-yellow-400 font-bold">Use max</button>
+                            </div>
+                        </div>
+
+                        <button type="submit"
+                                wire:loading.attr="disabled"
+                                {{ (! $canWithdraw || $balance < 10) ? 'disabled' : '' }}
+                                class="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold text-white bg-green-600 hover:bg-green-700 disabled:opacity-40 disabled:cursor-not-allowed">
+                            <span wire:loading.remove wire:target="requestWithdrawal" class="inline-flex items-center gap-2">
+                                <flux:icon.arrow-down-tray class="w-4 h-4" />
+                                @if ($balance < 10)
+                                    Balance too low
+                                @elseif (! $canWithdraw)
+                                    Cooldown active
+                                @else
+                                    Withdraw
+                                @endif
+                            </span>
+                            <span wire:loading wire:target="requestWithdrawal" class="inline-flex items-center gap-2">
+                                <svg class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                                </svg>
+                                Processing…
+                            </span>
+                        </button>
+                    </form>
+                @endif
+
+                <div class="bg-gray-800/60 rounded-2xl border border-gray-700/60 overflow-hidden mt-4">
+                    <div class="px-4 py-3 border-b border-gray-700/60 flex items-center justify-between">
+                        <h3 class="text-sm font-bold text-white">Recent withdrawals</h3>
+                        <flux:icon.clock class="w-3.5 h-3.5 text-gray-500" />
+                    </div>
+
+                    @if ($this->withdrawalHistory->count() > 0)
+                        <ul class="divide-y divide-gray-700/40">
+                            @foreach ($this->withdrawalHistory as $w)
+                                <li wire:key="wd-{{ $w->id }}" class="px-4 py-3 flex items-center gap-3">
+                                    <div @class([
+                                        'w-8 h-8 rounded-full flex items-center justify-center shrink-0',
+                                        'bg-green-500/10 text-green-500' => $w->status === 'completed',
+                                        'bg-red-500/10 text-red-500'     => $w->status === 'failed',
+                                        'bg-yellow-500/10 text-yellow-500' => $w->status === 'pending',
+                                    ])>
+                                        @if ($w->status === 'completed')
+                                            <flux:icon.check-circle class="w-3.5 h-3.5" />
+                                        @elseif ($w->status === 'failed')
+                                            <flux:icon.x-circle class="w-3.5 h-3.5" />
+                                        @else
+                                            <flux:icon.clock class="w-3.5 h-3.5" />
+                                        @endif
+                                    </div>
+
+                                    <div class="flex-1 min-w-0">
+                                        <div class="text-xs font-semibold text-white truncate">
+                                            To {{ $this->maskPhone($w->phone_number) }}
+                                        </div>
+                                        <div class="text-[10px] text-gray-500 truncate">
+                                            {{ $w->created_at->diffForHumans() }} · {{ $w->status }}
+                                        </div>
+                                    </div>
+
+                                    <div class="text-sm font-mono font-bold text-gray-300 shrink-0">
+                                        −{{ number_format($w->amount, 0) }}
+                                    </div>
+                                </li>
+                            @endforeach
+                        </ul>
+                    @else
+                        <div class="py-10 text-center">
+                            <flux:icon.clock class="w-7 h-7 text-gray-600 mx-auto mb-2" />
+                            <p class="text-xs text-gray-500">No withdrawals yet.</p>
+                        </div>
+                    @endif
+                </div>
+            @endif
+        </main>
+
+        {{-- ═══════════════ MOBILE FLOATING TAB BAR ═══════════════ --}}
+        <nav class="lg:hidden fixed left-1/2 -translate-x-1/2 z-50
+                    flex items-center gap-1 p-1.5
+                    bg-gray-900/85 backdrop-blur-2xl
+                    border border-gray-700/60
+                    rounded-full
+                    shadow-2xl shadow-black/60"
+             style="bottom: calc(1.25rem + env(safe-area-inset-bottom, 0px));"
+             aria-label="Primary">
+
+            @foreach ($tabs as $key => [$label, $icon])
+                <button wire:click="setTab('{{ $key }}')" type="button"
+                        @class([
+                            'relative flex items-center justify-center rounded-full transition-all duration-300 ease-out',
+                            'gap-2 pl-3.5 pr-4 py-2.5 bg-red-600 text-white shadow-lg shadow-red-600/30' => $activeTab === $key,
+                            'px-3.5 py-2.5 text-gray-400 hover:text-white active:scale-95' => $activeTab !== $key,
+                        ])
+                        aria-label="{{ $label }}"
+                        @if ($activeTab === $key) aria-current="page" @endif>
+                    <flux:icon :name="$icon" class="w-5 h-5 shrink-0" />
+                    @if ($activeTab === $key)
+                        <span class="text-xs font-bold whitespace-nowrap">{{ $label }}</span>
+                    @endif
+                </button>
+            @endforeach
+        </nav>
     @endif
 </div>
