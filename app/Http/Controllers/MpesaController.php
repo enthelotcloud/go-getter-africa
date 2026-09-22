@@ -32,7 +32,6 @@ class MpesaController extends Controller
     protected function getBaseCostPerVote()
     {
         $package = TokenPackage::where('is_active', true)->orderBy('price_kes', 'asc')->first();
-        // If a package is 50 KES for 5 tokens, rate is 10 KES per vote. Defaults to 10 if no package exists.
         return $package ? ($package->price_kes / max(1, $package->tokens)) : 10;
     }
 
@@ -155,44 +154,28 @@ class MpesaController extends Controller
 
                 // Scenario B: Guest User Voted Directly
                 elseif ($transaction->nomination_id) {
-                    $nomination = Nomination::with('category', 'user')->find($transaction->nomination_id);
+                    $nomination = Nomination::find($transaction->nomination_id);
 
                     // --- DYNAMIC PACKAGE MULTIPLIER ---
                     $costPerVote = $this->getBaseCostPerVote();
                     $votesEarned = max(1, floor($transaction->amount / $costPerVote));
+
+                    // Calculate exact commission based on your 60% rate
                     $commission = $transaction->amount * $this->commissionRate;
 
-                    // 1. Cast the Vote
+                    // 1. Cast the Vote in the database
                     Vote::create([
                         'guest_phone' => $transaction->phone_number,
                         'nomination_id' => $nomination->id,
                         'nomination_category_id' => $nomination->nomination_category_id,
-                        'tokens_spent' => $votesEarned, // Saves dynamic amount
+                        'tokens_spent' => $votesEarned,
                         'commission_earned_kes' => $commission,
                         'transaction_id' => $transaction->id
                     ]);
 
-                    // Increment public cache
+                    // 2. Update the Nominee's Votes AND their KES Balance directly!
                     $nomination->increment('total_votes', $votesEarned);
-
-                    // 2. Pay the Nominee's Wallet
-                    if ($nomination->user_id) {
-                        $nomineeWallet = Wallet::firstOrCreate(
-                            ['user_id' => $nomination->user_id],
-                            ['token_balance' => 0, 'kes_balance' => 0]
-                        );
-
-                        $nomineeWallet->increment('kes_balance', $commission);
-
-                        WalletTransaction::create([
-                            'wallet_id' => $nomineeWallet->id,
-                            'type' => 'commission_earned',
-                            'amount' => $commission,
-                            'currency' => 'KES',
-                            'description' => "Guest vote commission ({$votesEarned} votes) from {$transaction->phone_number}",
-                            'transaction_id' => $transaction->id
-                        ]);
-                    }
+                    $nomination->increment('kes_balance', $commission);
                 }
             });
         } else {
