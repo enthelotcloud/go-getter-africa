@@ -2,6 +2,7 @@
 
 use App\Models\Nomination;
 use App\Models\Transaction;
+use App\Models\Vote;
 use App\Services\MpesaService;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -15,8 +16,9 @@ new class extends Component {
 
     // Modals
     public $showPayoutModal = false;
+    public $showAdminWithdrawModal = false;
 
-    // Payout State
+    // Nominee Payout State
     public $nominationId = null;
     public $nomineeName = '';
     public $maxAmount = 0;
@@ -29,11 +31,16 @@ new class extends Component {
     #[Validate('required|numeric|min:10')]
     public $amount = 0;
 
+    // Admin Payout State
+    public $adminPhone = '';
+    public $adminAmount = 0;
+
     public function updatingSearch()
     {
-        $this->resetPage();
+        $this->resetPage('pendingPage');
     }
 
+    // --- NOMINEE PAYOUT LOGIC ---
     public function openPayoutModal($id)
     {
         $this->resetValidation();
@@ -75,12 +82,10 @@ new class extends Component {
         $nominee = Nomination::findOrFail($this->nominationId);
 
         try {
-            // Sends request directly to Safaricom
             $response = $mpesa->withdrawB2C($this->phone, $this->amount, 'Payout for ' . $this->nomineeName);
 
             if (isset($response['ConversationID'])) {
                 DB::transaction(function () use ($nominee, $response) {
-
                     Transaction::create([
                         'type' => 'b2c_withdrawal',
                         'phone_number' => $this->phone,
@@ -105,9 +110,49 @@ new class extends Component {
         }
     }
 
+    // --- ADMIN PROFIT WITHDRAWAL LOGIC ---
+    public function processAdminWithdrawal(MpesaService $mpesa)
+    {
+        $this->validate([
+            'adminPhone' => 'required|string|min:10',
+            'adminAmount' => 'required|numeric|min:10',
+        ]);
+
+        try {
+            $response = $mpesa->withdrawB2C($this->adminPhone, $this->adminAmount, 'Admin Profit Withdrawal');
+
+            if (isset($response['ConversationID'])) {
+                Transaction::create([
+                    'type' => 'admin_withdrawal',
+                    'phone_number' => $this->adminPhone,
+                    'amount' => $this->adminAmount,
+                    'merchant_request_id' => $response['OriginatorConversationID'] ?? null,
+                    'checkout_request_id' => $response['ConversationID'],
+                    'status' => 'pending'
+                ]);
+
+                $this->showAdminWithdrawModal = false;
+                $this->reset(['adminPhone', 'adminAmount']);
+                session()->flash('message', 'Admin withdrawal initiated successfully! Check your phone.');
+            } else {
+                $this->addError('mpesa_admin', 'Failed to initiate B2C. Check Safaricom configuration.');
+            }
+        } catch (\Exception $e) {
+            $this->addError('mpesa_admin', 'System Error: ' . $e->getMessage());
+        }
+    }
+
     public function with(): array
     {
+        // Calculate Available Admin Profit
+        $totalRevenue = Transaction::where('type', 'stk_push')->where('status', 'completed')->sum('amount');
+        $totalCommissions = Vote::sum('commission_earned_kes');
+        $withdrawnProfit = Transaction::where('type', 'admin_withdrawal')->where('status', 'completed')->sum('amount');
+        $availableProfit = $totalRevenue - $totalCommissions - $withdrawnProfit;
+
         return [
+            'availableProfit' => $availableProfit,
+
             'nominations' => Nomination::where('kes_balance', '>', 0)
                 ->when($this->search, function ($query) {
                     $query->where('name', 'like', '%' . $this->search . '%')
@@ -116,21 +161,35 @@ new class extends Component {
                 ->orderByDesc('kes_balance')
                 ->paginate(8, ['*'], 'pendingPage'),
 
-            'logs' => Transaction::where('type', 'b2c_withdrawal')
+            // The Unified Outgoing Ledger (Both Admin and Nominee Payouts)
+            'logs' => Transaction::whereIn('type', ['b2c_withdrawal', 'admin_withdrawal'])
                 ->with('nomination')
                 ->latest()
-                ->paginate(5, ['*'], 'logsPage')
+                ->paginate(8, ['*'], 'logsPage')
         ];
     }
 };
 ?>
 
-<div class="max-w-7xl mx-auto text-gray-200">
+<div class="max-w-7xl mx-auto text-gray-200" wire:poll.15s>
 
-    <!-- Clean Header -->
-    <div class="mb-8">
-        <h2 class="text-3xl font-bold text-white tracking-tight">Payout Manager</h2>
-        <p class="text-sm text-gray-400 mt-1">Settle commission balances directly to nominees' M-PESA accounts. Ensure your Safaricom B2C account has sufficient working funds.</p>
+    <!-- Header & Profit Tracker -->
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+        <div>
+            <h2 class="text-3xl font-bold text-white tracking-tight">Payout Manager</h2>
+            <p class="text-sm text-gray-400 mt-1">Manage nominee commissions and extract your platform profits.</p>
+        </div>
+
+        <div class="flex items-center gap-4 bg-gray-800 p-2 rounded-xl border border-gray-700 shadow-xl">
+            <div class="px-4 py-2">
+                <div class="text-[10px] text-gray-400 uppercase tracking-wider font-bold mb-0.5">Available Profit</div>
+                <div class="text-lg font-mono font-bold text-green-400">KES {{ number_format($availableProfit, 2) }}</div>
+            </div>
+            <button wire:click="$set('showAdminWithdrawModal', true)" class="px-5 py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg transition-colors shadow-lg shadow-green-600/20 flex items-center gap-2 border border-green-500">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                Extract Profit
+            </button>
+        </div>
     </div>
 
     @if (session()->has('message'))
@@ -145,10 +204,10 @@ new class extends Component {
         </div>
     @endif
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-8">
 
-        <!-- Left Column: Pending Payouts -->
-        <div class="lg:col-span-2 space-y-6">
+        <!-- Left Column: Pending Nominee Payouts -->
+        <div class="lg:col-span-1 xl:col-span-2 space-y-6">
             <div class="bg-gray-800 rounded-xl shadow-xl border border-gray-700 overflow-hidden">
                 <div class="p-5 border-b border-gray-700 bg-gray-900/50 flex justify-between items-center">
                     <h3 class="text-lg font-bold text-white">Pending Commissions</h3>
@@ -197,7 +256,7 @@ new class extends Component {
                     </ul>
                     @if($nominations->hasPages())
                         <div class="p-4 border-t border-gray-700 bg-gray-900/30">
-                            {{ $nominations->links() }}
+                            {{ $nominations->links('pagination::tailwind') }}
                         </div>
                     @endif
                 @else
@@ -209,11 +268,12 @@ new class extends Component {
             </div>
         </div>
 
-        <!-- Right Column: Payout Logs -->
+        <!-- Right Column: Unified Outgoing Ledger -->
         <div class="lg:col-span-1 space-y-6">
             <div class="bg-gray-800 rounded-xl shadow-xl border border-gray-700 overflow-hidden">
                 <div class="p-5 border-b border-gray-700 bg-gray-900/50">
-                    <h3 class="text-lg font-bold text-white">Recent Logs</h3>
+                    <h3 class="text-lg font-bold text-white">All Outgoing Payout Logs</h3>
+                    <p class="text-xs text-gray-400 mt-1">Tracks both Nominee payments and Admin extractions.</p>
                 </div>
 
                 @if($logs->count() > 0)
@@ -221,22 +281,43 @@ new class extends Component {
                         @foreach ($logs as $log)
                             <li class="p-4 hover:bg-gray-700/30 transition-colors">
                                 <div class="flex justify-between items-start mb-1">
-                                    <div class="text-sm font-bold text-white truncate pr-2">{{ $log->nomination->name ?? 'Unknown' }}</div>
-                                    <div class="text-xs font-mono font-bold text-red-400">- KES {{ number_format($log->amount) }}</div>
+                                    <div class="flex items-center gap-2">
+                                        @if($log->type === 'admin_withdrawal')
+                                            <span class="px-2 py-0.5 bg-purple-500/10 border border-purple-500/20 text-purple-400 text-[10px] uppercase font-bold rounded">Admin Profit</span>
+                                        @else
+                                            <span class="px-2 py-0.5 bg-yellow-500/10 border border-yellow-500/20 text-yellow-500 text-[10px] uppercase font-bold rounded">Nominee</span>
+                                        @endif
+                                    </div>
+                                    <div class="text-sm font-mono font-bold text-red-400">- KES {{ number_format($log->amount) }}</div>
                                 </div>
-                                <div class="flex justify-between items-center text-xs text-gray-500">
+
+                                <div class="mt-2 text-sm text-gray-300">
+                                    @if($log->type === 'admin_withdrawal')
+                                        Sent to <span class="font-bold text-white">Admin</span>
+                                    @else
+                                        Sent to <span class="font-bold text-white">{{ $log->nomination->name ?? 'Unknown Nominee' }}</span>
+                                    @endif
+                                </div>
+
+                                <div class="flex justify-between items-center text-xs text-gray-500 mt-1">
                                     <span class="font-mono">{{ $log->phone_number }}</span>
                                     <span>{{ $log->created_at->diffForHumans() }}</span>
                                 </div>
-                                <div class="mt-2 text-[10px] uppercase font-bold {{ $log->status === 'completed' ? 'text-green-500' : ($log->status === 'failed' ? 'text-red-500' : 'text-yellow-500') }}">
-                                    {{ $log->status }} • {{ $log->receipt_number ?? 'Pending Webhook' }}
+
+                                <div class="mt-3 pt-3 border-t border-gray-700/50 flex justify-between items-center">
+                                    <span class="text-[10px] uppercase font-bold {{ $log->status === 'completed' ? 'text-green-500' : ($log->status === 'failed' ? 'text-red-500' : 'text-yellow-500') }}">
+                                        STATUS: {{ $log->status }}
+                                    </span>
+                                    <span class="text-[10px] font-mono text-gray-500">
+                                        {{ $log->receipt_number ?? 'Pending Webhook...' }}
+                                    </span>
                                 </div>
                             </li>
                         @endforeach
                     </ul>
                     @if($logs->hasPages())
                         <div class="p-3 border-t border-gray-700 bg-gray-900/30">
-                            {{ $logs->links() }}
+                            {{ $logs->links('pagination::tailwind') }}
                         </div>
                     @endif
                 @else
@@ -248,12 +329,12 @@ new class extends Component {
         </div>
     </div>
 
-    <!-- Payout Modal -->
+    <!-- Nominee Payout Modal -->
     <div x-data x-show="$wire.showPayoutModal" style="display: none;" class="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6" aria-labelledby="modal-title" role="dialog" aria-modal="true">
         <div class="absolute inset-0 bg-gray-900/90 backdrop-blur-sm transition-opacity" wire:click="$set('showPayoutModal', false)"></div>
         <div class="relative z-10 w-full max-w-md bg-gray-800 border border-gray-700 rounded-2xl shadow-2xl overflow-hidden">
             <div class="px-6 py-4 border-b border-gray-700 bg-gray-900/80 flex justify-between items-center shrink-0">
-                <h3 class="text-lg font-bold text-white">Process Payout</h3>
+                <h3 class="text-lg font-bold text-white">Pay Nominee</h3>
                 <button type="button" wire:click="$set('showPayoutModal', false)" class="text-gray-400 hover:text-white transition-colors">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                 </button>
@@ -320,6 +401,77 @@ new class extends Component {
                         <span wire:loading wire:target="processPayout" class="flex items-center gap-2">
                             <svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                             Sending...
+                        </span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Admin Withdrawal Modal -->
+    <div x-data x-show="$wire.showAdminWithdrawModal" style="display: none;" class="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+        <div class="absolute inset-0 bg-gray-900/90 backdrop-blur-sm transition-opacity" wire:click="$set('showAdminWithdrawModal', false)"></div>
+        <div class="relative z-10 w-full max-w-md bg-gray-800 border border-gray-700 rounded-2xl shadow-2xl overflow-hidden">
+
+            <div class="px-6 py-4 border-b border-gray-700 bg-gray-900/80 flex justify-between items-center shrink-0">
+                <h3 class="text-lg font-bold text-white">Extract Platform Profit</h3>
+                <button type="button" wire:click="$set('showAdminWithdrawModal', false)" class="text-gray-400 hover:text-white transition-colors">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+
+            <form wire:submit="processAdminWithdrawal" class="p-6">
+
+                @error('mpesa_admin')
+                    <div class="mb-5 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-sm text-red-400 flex items-start gap-2">
+                        <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                        {{ $message }}
+                    </div>
+                @enderror
+
+                <div class="mb-6 p-4 bg-gray-900 rounded-xl border border-gray-700 flex justify-between items-center">
+                    <div>
+                        <div class="text-xs text-gray-500 uppercase tracking-wider font-bold mb-1">To</div>
+                        <div class="text-base font-bold text-white">Admin Account</div>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-xs text-gray-500 uppercase tracking-wider font-bold mb-1">Available Profit</div>
+                        <div class="text-lg font-mono font-bold text-green-400">KES {{ number_format($availableProfit, 2) }}</div>
+                    </div>
+                </div>
+
+                <div class="space-y-5">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-400 mb-1">Your M-PESA Number</label>
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><span class="text-gray-500 sm:text-sm">🇰🇪</span></div>
+                            <input type="text" wire:model="adminPhone" placeholder="0712345678" class="block w-full pl-10 pr-3 py-3 bg-gray-900 border border-gray-600 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors">
+                        </div>
+                        <p class="text-xs text-gray-500 mt-1">Funds will be sent via B2C API.</p>
+                        @error('adminPhone') <span class="text-xs text-red-400 mt-1 block">{{ $message }}</span> @enderror
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-400 mb-1">Amount to Withdraw (KES)</label>
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                <span class="text-gray-500 font-bold sm:text-sm">KES</span>
+                            </div>
+                            <input type="number" wire:model="adminAmount" max="{{ $availableProfit }}" class="block w-full pl-14 pr-3 py-3 bg-gray-900 border border-gray-600 rounded-xl text-white font-mono text-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors">
+                        </div>
+                        @error('adminAmount') <span class="text-xs text-red-400 mt-1 block">{{ $message }}</span> @enderror
+                    </div>
+                </div>
+
+                <div class="mt-8 flex gap-3">
+                    <button type="button" wire:click="$set('showAdminWithdrawModal', false)" class="flex-1 px-4 py-3 bg-gray-700 hover:bg-gray-600 text-white font-bold rounded-xl transition-colors border border-gray-600">
+                        Cancel
+                    </button>
+                    <button type="submit" wire:loading.attr="disabled" class="flex-1 flex items-center justify-center px-4 py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl transition-all shadow-lg shadow-green-600/20 disabled:opacity-50">
+                        <span wire:loading.remove wire:target="processAdminWithdrawal">Extract Profit</span>
+                        <span wire:loading wire:target="processAdminWithdrawal" class="flex items-center gap-2">
+                            <svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                            Processing...
                         </span>
                     </button>
                 </div>
