@@ -177,7 +177,7 @@ new class extends Component {
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
         <div>
             <h2 class="text-3xl font-bold text-white tracking-tight">Payout Manager</h2>
-            <p class="text-sm text-gray-400 mt-1">Manage nominee commissions and extract your platform profits.</p>
+            <p class="text-sm text-gray-400 mt-1">Manage nominee commissions and Withdraw your platform profits.</p>
         </div>
 
         <div class="flex items-center gap-4 bg-gray-800 p-2 rounded-xl border border-gray-700 shadow-xl">
@@ -187,7 +187,7 @@ new class extends Component {
             </div>
             <button wire:click="$set('showAdminWithdrawModal', true)" class="px-5 py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg transition-colors shadow-lg shadow-green-600/20 flex items-center gap-2 border border-green-500">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                Extract Profit
+                Wuthdraw Profit
             </button>
         </div>
     </div>
@@ -273,7 +273,7 @@ new class extends Component {
             <div class="bg-gray-800 rounded-xl shadow-xl border border-gray-700 overflow-hidden">
                 <div class="p-5 border-b border-gray-700 bg-gray-900/50">
                     <h3 class="text-lg font-bold text-white">All Outgoing Payout Logs</h3>
-                    <p class="text-xs text-gray-400 mt-1">Tracks both Nominee payments and Admin extractions.</p>
+                    <p class="text-xs text-gray-400 mt-1">Tracks both Nominee payments and Admin Withdraw.</p>
                 </div>
 
                 @if($logs->count() > 0)
@@ -414,7 +414,7 @@ new class extends Component {
         <div class="relative z-10 w-full max-w-md bg-gray-800 border border-gray-700 rounded-2xl shadow-2xl overflow-hidden">
 
             <div class="px-6 py-4 border-b border-gray-700 bg-gray-900/80 flex justify-between items-center shrink-0">
-                <h3 class="text-lg font-bold text-white">Extract Platform Profit</h3>
+                <h3 class="text-lg font-bold text-white">Withdraw Platform Profit</h3>
                 <button type="button" wire:click="$set('showAdminWithdrawModal', false)" class="text-gray-400 hover:text-white transition-colors">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                 </button>
